@@ -41,6 +41,12 @@ const Unauthorized = lazy(
 const GanttDemoPage = lazy(
   ChunkErrorHandler.wrapLazyImport(() => import('@/pages/GanttDemoPage'), 'GanttDemoPage')
 );
+const ApprovalsPage = lazy(
+  ChunkErrorHandler.wrapLazyImport(
+    () => import('@/pages/approvals/ApprovalsPage'),
+    'ApprovalsPage'
+  )
+);
 const LicenseExpiredPage = lazy(
   ChunkErrorHandler.wrapLazyImport(
     () => import('@/pages/license-expired/LicenseExpired'),
@@ -175,6 +181,14 @@ const mainRoutes: RouteObject[] = [
         element: (
           <Suspense fallback={<SuspenseFallback />}>
             <GanttDemoPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: 'approvals',
+        element: (
+          <Suspense fallback={<SuspenseFallback />}>
+            <ApprovalsPage />
           </Suspense>
         ),
       },

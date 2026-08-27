@@ -69,6 +69,7 @@ import userActivityLogsApiRouter from "./user-activity-logs-api-router";
 import supportApiRouter from "./support-api-router";
 import accountApiRouter from "./account-api-router";
 import onboardingApiRouter from "./onboarding-api-router";
+import taskTimeApprovalApiRouter from "./task-time-approval-api-router";
 import importsApiRouter from "./imports-api-router";
 
 import business from "../../business";
@@ -125,6 +126,7 @@ api.use("/schedule-gannt-v2", scheduleApiV2Router);
 api.use("/project-managers", projectManagerApiRouter);
 api.use("/surveys", surveyApiRouter);
 api.use("/onboarding", onboardingApiRouter);
+api.use("/time-approvals", taskTimeApprovalApiRouter);
 
 api.get("/overview/:id", safeControllerFunction(OverviewController.getById));
 api.get(

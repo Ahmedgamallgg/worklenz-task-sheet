@@ -107,6 +107,22 @@ export default class TaskWorklogController extends WorklenzControllerBase {
   ): Promise<IWorkLenzResponse> {
     const { seconds_spent, description, created_at, formatted_start } =
       req.body;
+
+    // Check if time log is locked by a pending or approved submission
+    const lockCheckQuery = `
+      SELECT tta.id, tta.status
+      FROM task_time_approvals tta
+      JOIN tasks t ON t.id = tta.task_id
+      JOIN task_work_log twl ON twl.task_id = t.id
+      JOIN team_members tm ON tm.id = tta.team_member_id AND tm.user_id = twl.user_id
+      WHERE twl.id = $1 AND twl.user_id = $2
+        AND tta.status IN ('PENDING', 'APPROVED', 'ADJUSTED');
+    `;
+    const lockCheck = await db.query(lockCheckQuery, [req.params.id, req.user?.id]);
+    if (lockCheck.rows.length > 0) {
+      return res.status(403).send(new ServerResponse(false, null, "This time entry belongs to a submitted or approved task and cannot be modified."));
+    }
+
     const q = `
       UPDATE task_work_log
       SET time_spent  = $3,
@@ -144,6 +160,21 @@ export default class TaskWorklogController extends WorklenzControllerBase {
     req: IWorkLenzRequest,
     res: IWorkLenzResponse,
   ): Promise<IWorkLenzResponse> {
+    // Check if time log is locked by a pending or approved submission
+    const lockCheckQuery = `
+      SELECT tta.id, tta.status
+      FROM task_time_approvals tta
+      JOIN tasks t ON t.id = tta.task_id
+      JOIN task_work_log twl ON twl.task_id = t.id
+      JOIN team_members tm ON tm.id = tta.team_member_id AND tm.user_id = twl.user_id
+      WHERE twl.id = $1 AND twl.user_id = $2
+        AND tta.status IN ('PENDING', 'APPROVED', 'ADJUSTED');
+    `;
+    const lockCheck = await db.query(lockCheckQuery, [req.params.id, req.user?.id]);
+    if (lockCheck.rows.length > 0) {
+      return res.status(403).send(new ServerResponse(false, null, "This time entry belongs to a submitted or approved task and cannot be deleted."));
+    }
+
     const q = `DELETE
                FROM task_work_log
                WHERE id = $1

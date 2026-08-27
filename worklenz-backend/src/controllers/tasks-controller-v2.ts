@@ -1,4 +1,4 @@
-﻿import { ParsedQs } from "qs";
+import { ParsedQs } from "qs";
 
 import db from "../config/db";
 import HandleExceptions from "../decorators/handle-exceptions";
@@ -716,7 +716,9 @@ export default class TasksControllerV2 extends TasksControllerBase {
              (SELECT id FROM task_priorities WHERE id = t.priority_id) AS priority,
              (SELECT value FROM task_priorities WHERE id = t.priority_id) AS priority_value,
              total_minutes,
+             maximum_approved_minutes,
              (SELECT SUM(time_spent) FROM task_work_log WHERE task_id = t.id) AS total_minutes_spent,
+             (SELECT status FROM task_time_approvals WHERE task_id = t.id ORDER BY submitted_at DESC LIMIT 1) AS latest_time_approval_status,
              created_at,
              updated_at,
              completed_at,

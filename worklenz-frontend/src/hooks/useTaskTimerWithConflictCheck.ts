@@ -16,7 +16,10 @@ interface ConflictingTimer {
   project_name: string;
 }
 
-export const useTaskTimerWithConflictCheck = (taskId: string, timerStartTime: string | null) => {
+export const useTaskTimerWithConflictCheck = (
+  taskId: string,
+  timerStartTime: string | number | null
+) => {
   const dispatch = useAppDispatch();
   const { socket } = useSocket();
   const { t: tTable } = useTranslation('task-list-table');

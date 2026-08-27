@@ -6,6 +6,7 @@ import { TFunction } from 'i18next';
 import EmptyListPlaceholder from '@/components/EmptyListPlaceholder';
 import { useAppSelector } from '@/hooks/useAppSelector';
 import { useAppDispatch } from '@/hooks/useAppDispatch';
+import TaskTimeApprovalStatusCard from './TaskTimeApprovalStatusCard';
 import TimeLogList from './time-log-list';
 import { taskTimeLogsApiService } from '@/api/tasks/task-time-logs.api.service';
 import { ITaskLogViewModel } from '@/types/tasks/task-log-view.types';
@@ -209,6 +210,12 @@ const TaskDrawerTimeLog = ({ t, refreshTrigger = 0 }: TaskDrawerTimeLogProps) =>
           </Flex>
         </Flex>
         <Divider style={{ marginBlock: 8 }} />
+        {selectedTaskId && (
+          <TaskTimeApprovalStatusCard
+            taskId={selectedTaskId}
+            onStatusChange={fetchTimeLoggedList}
+          />
+        )}
         {renderTimeLogContent()}
       </Flex>
     </Flex>

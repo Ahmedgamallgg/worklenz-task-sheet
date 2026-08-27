@@ -286,3 +286,24 @@ ON failed_task_notifications(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_failed_task_notifications_failed_at
 ON failed_task_notifications(failed_at);
+
+-- Indexes for task_time_approvals
+CREATE INDEX IF NOT EXISTS idx_task_time_approvals_task_member 
+ON task_time_approvals(task_id, team_member_id);
+
+CREATE INDEX IF NOT EXISTS idx_task_time_approvals_approver 
+ON task_time_approvals(approver_member_id);
+
+CREATE INDEX IF NOT EXISTS idx_task_time_approvals_status 
+ON task_time_approvals(status);
+
+CREATE INDEX IF NOT EXISTS idx_task_time_approvals_submitted_at 
+ON task_time_approvals(submitted_at);
+
+CREATE INDEX IF NOT EXISTS idx_task_time_approvals_team_member 
+ON task_time_approvals(team_member_id);
+
+CREATE UNIQUE INDEX IF NOT EXISTS uq_task_time_approvals_pending 
+ON task_time_approvals(task_id, team_member_id) 
+WHERE status = 'PENDING';
+

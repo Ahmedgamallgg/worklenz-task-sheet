@@ -10,6 +10,7 @@ import { taskTimeLogsApiService } from '@/api/tasks/task-time-logs.api.service';
 import { ITaskLogViewModel } from '@/types/tasks/task-log-view.types';
 import TaskTimer from '@/components/taskListCommon/task-timer/task-timer';
 import { useTaskTimer } from '@/hooks/useTaskTimer';
+import TaskTimeApprovalStatusCard from './TaskTimeApprovalStatusCard';
 import TimeLogItem from './time-log-item';
 
 const TaskDrawerTimeLog = () => {
@@ -138,11 +139,11 @@ const TaskDrawerTimeLog = () => {
           <Typography.Text type="secondary">Total Logged: {totalTimeText}</Typography.Text>
           <Flex gap={8} align="center">
             <TaskTimer
+              taskId={selectedTaskId || ''}
               started={started}
               handleStartTimer={handleStartTimer}
               handleStopTimer={handleTimerStop}
               timeString={timeString}
-              timeTrackingLogCard={<div>Time Tracking Log</div>}
             />
             <Button size="small" icon={<DownloadOutlined />}>
               Export to Excel
@@ -150,6 +151,12 @@ const TaskDrawerTimeLog = () => {
           </Flex>
         </Flex>
         <Divider style={{ marginBlock: 8 }} />
+        {selectedTaskId && (
+          <TaskTimeApprovalStatusCard
+            taskId={selectedTaskId}
+            onStatusChange={fetchTimeLoggedList}
+          />
+        )}
         {renderTimeLogList()}
       </Flex>
 

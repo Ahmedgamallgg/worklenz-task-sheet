@@ -1204,12 +1204,17 @@ CREATE TABLE IF NOT EXISTS tasks (
     priority_sort_order INTEGER                  DEFAULT 0                  NOT NULL,
     phase_sort_order    INTEGER                  DEFAULT 0                  NOT NULL,
     billable            BOOLEAN                  DEFAULT TRUE,
-    schedule_id         UUID
+    schedule_id         UUID,
+    maximum_approved_minutes NUMERIC             DEFAULT NULL
 );
 
 ALTER TABLE tasks
     ADD CONSTRAINT tasks_pk
         PRIMARY KEY (id);
+
+ALTER TABLE tasks
+    ADD CONSTRAINT tasks_maximum_approved_minutes_check
+        CHECK (maximum_approved_minutes IS NULL OR (maximum_approved_minutes >= (0)::NUMERIC AND maximum_approved_minutes <= (999999)::NUMERIC));
 
 ALTER TABLE task_activity_logs
     ADD CONSTRAINT task_activity_logs_tasks_id_fk
@@ -1526,17 +1531,70 @@ ALTER TABLE users
         CHECK (CHAR_LENGTH(name) <= 55);
 
 CREATE TABLE IF NOT EXISTS teams (
-    id              UUID                     DEFAULT uuid_generate_v4() NOT NULL,
-    name            TEXT                                                NOT NULL,
-    user_id         UUID                                                NOT NULL,
-    created_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP  NOT NULL,
-    updated_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP  NOT NULL,
-    organization_id UUID
+    id                   UUID                     DEFAULT uuid_generate_v4() NOT NULL,
+    name                 TEXT                                                NOT NULL,
+    user_id              UUID                                                NOT NULL,
+    created_at           TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP  NOT NULL,
+    updated_at           TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP  NOT NULL,
+    organization_id      UUID,
+    time_approval_policy TEXT                     DEFAULT 'NO_APPROVAL_REQUIRED'
 );
 
 ALTER TABLE teams
     ADD CONSTRAINT teams_pk
         PRIMARY KEY (id);
+
+ALTER TABLE teams
+    ADD CONSTRAINT teams_time_approval_policy_check
+        CHECK (time_approval_policy IN ('NO_APPROVAL_REQUIRED', 'AUTO_APPROVE', 'SPECIFIC_APPROVER'));
+
+CREATE TABLE IF NOT EXISTS task_time_approvals (
+    id                     UUID                     DEFAULT uuid_generate_v4() NOT NULL,
+    task_id                UUID                                                NOT NULL,
+    team_member_id         UUID                                                NOT NULL,
+    submitted_by_member_id UUID                                                NOT NULL,
+    approver_member_id     UUID,
+    recorded_duration      NUMERIC                  DEFAULT 0                  NOT NULL,
+    approved_duration      NUMERIC                  DEFAULT 0                  NOT NULL,
+    status                 TEXT                     DEFAULT 'PENDING'          NOT NULL,
+    adjustment_reason      TEXT,
+    rejection_reason       TEXT,
+    manager_comment        TEXT,
+    submission_number      INTEGER                  DEFAULT 1                  NOT NULL,
+    version                INTEGER                  DEFAULT 1                  NOT NULL,
+    submitted_at           TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP  NOT NULL,
+    reviewed_at            TIMESTAMP WITH TIME ZONE,
+    created_at             TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP  NOT NULL,
+    updated_at             TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP  NOT NULL
+);
+
+ALTER TABLE task_time_approvals
+    ADD CONSTRAINT task_time_approvals_pk
+        PRIMARY KEY (id);
+
+ALTER TABLE task_time_approvals
+    ADD CONSTRAINT task_time_approvals_tasks_fk
+        FOREIGN KEY (task_id) REFERENCES tasks (id)
+            ON DELETE CASCADE;
+
+ALTER TABLE task_time_approvals
+    ADD CONSTRAINT task_time_approvals_team_members_fk
+        FOREIGN KEY (team_member_id) REFERENCES team_members (id)
+            ON DELETE CASCADE;
+
+ALTER TABLE task_time_approvals
+    ADD CONSTRAINT task_time_approvals_submitted_by_fk
+        FOREIGN KEY (submitted_by_member_id) REFERENCES team_members (id)
+            ON DELETE CASCADE;
+
+ALTER TABLE task_time_approvals
+    ADD CONSTRAINT task_time_approvals_approver_fk
+        FOREIGN KEY (approver_member_id) REFERENCES team_members (id)
+            ON DELETE SET NULL;
+
+ALTER TABLE task_time_approvals
+    ADD CONSTRAINT task_time_approvals_status_check
+        CHECK (status IN ('PENDING', 'APPROVED', 'ADJUSTED', 'REJECTED', 'CANCELLED'));
 
 ALTER TABLE clients
     ADD CONSTRAINT clients_team_id_fk
