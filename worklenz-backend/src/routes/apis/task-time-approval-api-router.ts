@@ -35,6 +35,18 @@ taskTimeApprovalApiRouter.get(
   safeControllerFunction(TaskTimeApprovalController.getTimesheetSummary)
 );
 
+// Get my detailed timesheet
+taskTimeApprovalApiRouter.get(
+  "/timesheets/my",
+  safeControllerFunction(TaskTimeApprovalController.getMyTimesheet)
+);
+
+// Get team detailed timesheet
+taskTimeApprovalApiRouter.get(
+  "/timesheets/team",
+  safeControllerFunction(TaskTimeApprovalController.getTeamTimesheet)
+);
+
 // Get approval by task
 taskTimeApprovalApiRouter.get(
   "/task/:taskId",

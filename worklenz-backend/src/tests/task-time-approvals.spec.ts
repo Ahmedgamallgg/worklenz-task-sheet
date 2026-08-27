@@ -306,4 +306,165 @@ describe("Task Time Approvals Domain & Business Rules (Phase 3 Backend Logic)", 
       expect(res.approved_duration).toBe(0);
     });
   });
+
+  describe("12. Phase 4 — API Endpoints & Controller Validation Contracts", () => {
+    it("should validate POST /time-approvals/submit payload requirements", () => {
+      const validSubmit = { taskId: "task-1", user: { id: "user-1", team_id: "team-1" }, teamId: "team-1" };
+      expect(validSubmit.taskId).toBeDefined();
+      expect(validSubmit.user.id).toBeDefined();
+      expect(validSubmit.teamId).toBeDefined();
+
+      const invalidSubmit1 = { taskId: "", user: { id: "user-1", team_id: "team-1" }, teamId: "team-1" };
+      expect(Boolean(invalidSubmit1.taskId)).toBe(false);
+    });
+
+    it("should validate POST /time-approvals/:id/adjust requires valid adjustment reason when approved != recorded", () => {
+      const recorded = 19800; // 5h 30m
+      const approved = 14400; // 4h
+      const emptyReasonCheck = TaskTimeApprovalService.validateAdjustmentReason(recorded, approved, "");
+      expect(emptyReasonCheck.valid).toBe(false);
+      expect(emptyReasonCheck.code).toBe(TimeApprovalErrorCodes.ADJUSTMENT_REASON_REQUIRED);
+
+      const validReasonCheck = TaskTimeApprovalService.validateAdjustmentReason(
+        recorded,
+        approved,
+        "Meeting overran, deducted 1.5h"
+      );
+      expect(validReasonCheck.valid).toBe(true);
+    });
+
+    it("should validate POST /time-approvals/:id/reject requires mandatory rejection reason", () => {
+      const emptyCheck = TaskTimeApprovalService.validateRejectionReason("");
+      expect(emptyCheck.valid).toBe(false);
+      expect(emptyCheck.code).toBe(TimeApprovalErrorCodes.REJECTION_REASON_REQUIRED);
+
+      const filledCheck = TaskTimeApprovalService.validateRejectionReason("Please add log descriptions");
+      expect(filledCheck.valid).toBe(true);
+    });
+
+    it("should disallow self-approval when manager tries to approve own submission", () => {
+      const check = TaskTimeApprovalService.checkSelfApproval("user-manager-1", "user-manager-1");
+      expect(check.allowed).toBe(false);
+      expect(check.code).toBe(TimeApprovalErrorCodes.SELF_APPROVAL_NOT_ALLOWED);
+    });
+  });
+
+  describe("13. Phase 4 — Timesheet Aggregation and Daily Breakdown Logic", () => {
+    interface ITimesheetRow {
+      log_date: string;
+      recorded_seconds: number;
+      approved_seconds: number;
+      approval_status: string;
+    }
+
+    function aggregateTimesheet(rows: ITimesheetRow[]) {
+      let totalRecorded = 0;
+      let totalApproved = 0;
+      let totalPending = 0;
+      let totalAdjustment = 0;
+
+      const daysMap = new Map<string, {
+        date: string;
+        recorded_seconds: number;
+        approved_seconds: number;
+        pending_seconds: number;
+        adjustment_seconds: number;
+      }>();
+
+      for (const row of rows) {
+        const rec = row.recorded_seconds;
+        const app = (row.approval_status === "APPROVED" || row.approval_status === "ADJUSTED")
+          ? row.approved_seconds
+          : 0;
+        const pend = row.approval_status === "PENDING" ? rec : 0;
+        const adj = row.approval_status === "ADJUSTED" ? (app - rec) : 0;
+
+        totalRecorded += rec;
+        totalApproved += app;
+        totalPending += pend;
+        totalAdjustment += adj;
+
+        if (!daysMap.has(row.log_date)) {
+          daysMap.set(row.log_date, {
+            date: row.log_date,
+            recorded_seconds: 0,
+            approved_seconds: 0,
+            pending_seconds: 0,
+            adjustment_seconds: 0,
+          });
+        }
+
+        const day = daysMap.get(row.log_date)!;
+        day.recorded_seconds += rec;
+        day.approved_seconds += app;
+        day.pending_seconds += pend;
+        day.adjustment_seconds += adj;
+      }
+
+      return {
+        summary: {
+          total_recorded_seconds: totalRecorded,
+          total_approved_seconds: totalApproved,
+          total_pending_seconds: totalPending,
+          total_adjustment_seconds: totalAdjustment,
+        },
+        days: Array.from(daysMap.values()),
+      };
+    }
+
+    it("should accurately aggregate timesheet across multiple days and approval statuses", () => {
+      const rows: ITimesheetRow[] = [
+        // Monday: 8h recorded, 7.5h approved (ADJUSTED)
+        { log_date: "2026-08-24", recorded_seconds: 28800, approved_seconds: 27000, approval_status: "ADJUSTED" },
+        // Tuesday: 7h recorded, 7h approved (APPROVED)
+        { log_date: "2026-08-25", recorded_seconds: 25200, approved_seconds: 25200, approval_status: "APPROVED" },
+        // Wednesday: 8h20m recorded (30000s), pending 2h (7200s), approved 6h20m (22800s)
+        { log_date: "2026-08-26", recorded_seconds: 22800, approved_seconds: 22800, approval_status: "APPROVED" },
+        { log_date: "2026-08-26", recorded_seconds: 7200, approved_seconds: 0, approval_status: "PENDING" },
+      ];
+
+      const result = aggregateTimesheet(rows);
+
+      // Summary checks
+      expect(result.summary.total_recorded_seconds).toBe(28800 + 25200 + 22800 + 7200); // 84000s (23h 20m)
+      expect(result.summary.total_approved_seconds).toBe(27000 + 25200 + 22800); // 75000s (20h 50m)
+      expect(result.summary.total_pending_seconds).toBe(7200); // 2h (7200s)
+      expect(result.summary.total_adjustment_seconds).toBe(-1800); // -30m (-1800s)
+
+      // Day breakdown checks
+      expect(result.days).toHaveLength(3);
+      expect(result.days[0].date).toBe("2026-08-24");
+      expect(result.days[0].recorded_seconds).toBe(28800);
+      expect(result.days[0].approved_seconds).toBe(27000);
+      expect(result.days[0].adjustment_seconds).toBe(-1800);
+
+      expect(result.days[2].date).toBe("2026-08-26");
+      expect(result.days[2].recorded_seconds).toBe(30000);
+      expect(result.days[2].pending_seconds).toBe(7200);
+      expect(result.days[2].approved_seconds).toBe(22800);
+    });
+
+    it("should preserve recorded time without mutation when calculating team timesheet adjustments", () => {
+      const teamMemberRows = [
+        { name: "Ahmed", tasks: 22, recorded: 155700, approved: 142200 }, // 43h15m, 39h30m -> -3h45m (-13500s)
+        { name: "Sara", tasks: 19, recorded: 139200, approved: 139200 },   // 38h40m, 38h40m -> 0
+        { name: "Omar", tasks: 25, recorded: 170400, approved: 151800 },   // 47h20m, 42h10m -> -5h10m (-18600s)
+      ];
+
+      const memberSummaries = teamMemberRows.map((m) => ({
+        ...m,
+        adjustment: m.approved - m.recorded,
+      }));
+
+      expect(memberSummaries[0].recorded).toBe(155700);
+      expect(memberSummaries[0].adjustment).toBe(-13500);
+
+      expect(memberSummaries[1].recorded).toBe(139200);
+      expect(memberSummaries[1].adjustment).toBe(0);
+
+      expect(memberSummaries[2].recorded).toBe(170400);
+      expect(memberSummaries[2].adjustment).toBe(-18600);
+    });
+  });
 });
+

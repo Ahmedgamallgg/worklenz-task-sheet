@@ -70,6 +70,7 @@ import supportApiRouter from "./support-api-router";
 import accountApiRouter from "./account-api-router";
 import onboardingApiRouter from "./onboarding-api-router";
 import taskTimeApprovalApiRouter from "./task-time-approval-api-router";
+import timesheetsApiRouter from "./timesheets-api-router";
 import importsApiRouter from "./imports-api-router";
 
 import business from "../../business";
@@ -127,6 +128,7 @@ api.use("/project-managers", projectManagerApiRouter);
 api.use("/surveys", surveyApiRouter);
 api.use("/onboarding", onboardingApiRouter);
 api.use("/time-approvals", taskTimeApprovalApiRouter);
+api.use("/timesheets", timesheetsApiRouter);
 
 api.get("/overview/:id", safeControllerFunction(OverviewController.getById));
 api.get(

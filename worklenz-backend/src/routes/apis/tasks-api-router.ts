@@ -21,6 +21,7 @@ import taskCreateBodyValidator from "../../middlewares/validators/task-create-bo
 import verifyTaskAccess, {verifyBulkTaskAccessMiddleware} from "../../middlewares/verify-task-access";
 import TasksControllerV2 from "../../controllers/tasks-controller-v2";
 import verifyProjectAccess from "../../middlewares/verify-project-access";
+import TaskTimeApprovalController from "../../controllers/task-time-approval-controller";
 
 const tasksApiRouter = express.Router();
 
@@ -76,5 +77,9 @@ tasksApiRouter.put("/labels/:id", idParamValidator, verifyTaskAccess('params', '
 
 // Add custom column value update route
 tasksApiRouter.put("/:taskId/custom-column", verifyTaskAccess('params', 'taskId'), TasksControllerV2.updateCustomColumnValue);
+
+// Task time approval endpoints (Phase 4)
+tasksApiRouter.post("/:taskId/time-approval/submit", verifyTaskAccess('params', 'taskId'), safeControllerFunction(TaskTimeApprovalController.submit));
+tasksApiRouter.get("/:taskId/time-approval", verifyTaskAccess('params', 'taskId'), safeControllerFunction(TaskTimeApprovalController.getByTask));
 
 export default tasksApiRouter;

@@ -263,4 +263,58 @@ export default class TaskTimeApprovalController extends WorklenzControllerBase {
 
     return res.status(200).send(new ServerResponse(true, data));
   }
+
+  /**
+   * Get employee detailed timesheet with daily/weekly breakdown (GET /timesheets/my)
+   */
+  @HandleExceptions()
+  public static async getMyTimesheet(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
+    const userId = req.user?.id;
+    const teamId = req.user?.team_id;
+    const { start_date, end_date, view } = req.query;
+
+    if (!userId || !teamId) {
+      return res.status(400).send(new ServerResponse(false, null, "Authentication required."));
+    }
+
+    const data = await TaskTimeApprovalService.getMyTimesheet({
+      userId,
+      teamId,
+      startDate: start_date as string,
+      endDate: end_date as string,
+      view: view as string,
+    });
+
+    return res.status(200).send(new ServerResponse(true, data));
+  }
+
+  /**
+   * Get team members timesheet breakdown for managers (GET /timesheets/team)
+   */
+  @HandleExceptions()
+  public static async getTeamTimesheet(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
+    const userId = req.user?.id;
+    const teamId = req.user?.team_id;
+    const { employee_id, project_id, status, start_date, end_date } = req.query;
+
+    if (!userId || !teamId) {
+      return res.status(400).send(new ServerResponse(false, null, "Authentication required."));
+    }
+
+    const isAdmin = req.user?.is_admin || req.user?.owner;
+
+    const data = await TaskTimeApprovalService.getTeamTimesheet({
+      teamId,
+      userId,
+      isAdmin,
+      employeeId: employee_id as string,
+      projectId: project_id as string,
+      status: status as string,
+      startDate: start_date as string,
+      endDate: end_date as string,
+    });
+
+    return res.status(200).send(new ServerResponse(true, data));
+  }
 }
+

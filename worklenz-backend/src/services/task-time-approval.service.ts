@@ -1096,4 +1096,289 @@ export class TaskTimeApprovalService {
     const result = await db.query(query, queryParams);
     return result.rows;
   }
+
+  /**
+   * Get employee detailed timesheet with daily/weekly breakdown and task details
+   */
+  public static async getMyTimesheet(params: {
+    userId: string;
+    teamId: string;
+    startDate?: string;
+    endDate?: string;
+    view?: string;
+  }): Promise<{
+    summary: {
+      total_recorded_seconds: number;
+      total_approved_seconds: number;
+      total_pending_seconds: number;
+      total_adjustment_seconds: number;
+    };
+    days: Array<{
+      date: string;
+      recorded_seconds: number;
+      approved_seconds: number;
+      pending_seconds: number;
+      adjustment_seconds: number;
+      tasks: any[];
+    }>;
+  }> {
+    const { userId, teamId, startDate, endDate } = params;
+
+    // Get current member id
+    const memberRes = await db.query(
+      `SELECT id FROM team_members WHERE user_id = $1 AND team_id = $2;`,
+      [userId, teamId]
+    );
+    const memberId = memberRes.rows[0]?.id;
+
+    if (!memberId) {
+      return {
+        summary: {
+          total_recorded_seconds: 0,
+          total_approved_seconds: 0,
+          total_pending_seconds: 0,
+          total_adjustment_seconds: 0,
+        },
+        days: [],
+      };
+    }
+
+    let dateFilter = "";
+    const queryParams: any[] = [userId, teamId, memberId];
+    let paramIndex = 4;
+
+    if (startDate && endDate) {
+      dateFilter = ` AND twl.created_at >= $${paramIndex++} AND twl.created_at <= $${paramIndex++}`;
+      queryParams.push(startDate, endDate);
+    }
+
+    const query = `
+      SELECT 
+        TO_CHAR(twl.created_at, 'YYYY-MM-DD') AS log_date,
+        t.id AS task_id,
+        t.name AS task_name,
+        t.task_no,
+        p.id AS project_id,
+        p.name AS project_name,
+        SUM(twl.time_spent) AS recorded_seconds,
+        COALESCE(tta.status, 'NOT_SUBMITTED') AS approval_status,
+        COALESCE(tta.approved_duration, 0) AS approved_seconds,
+        tta.adjustment_reason,
+        tta.rejection_reason,
+        tta.manager_comment,
+        COUNT(twl.id) AS logs_count
+      FROM task_work_log twl
+      JOIN tasks t ON t.id = twl.task_id
+      JOIN projects p ON p.id = t.project_id AND p.team_id = $2
+      LEFT JOIN task_time_approvals tta ON tta.task_id = t.id AND tta.team_member_id = $3
+      WHERE twl.user_id = $1 ${dateFilter}
+      GROUP BY 
+        TO_CHAR(twl.created_at, 'YYYY-MM-DD'),
+        t.id, t.name, t.task_no, p.id, p.name,
+        tta.status, tta.approved_duration, tta.adjustment_reason, tta.rejection_reason, tta.manager_comment
+      ORDER BY log_date DESC, t.name ASC;
+    `;
+
+    const result = await db.query(query, queryParams);
+    const rows = result.rows;
+
+    let totalRecorded = 0;
+    let totalApproved = 0;
+    let totalPending = 0;
+    let totalAdjustment = 0;
+
+    const daysMap = new Map<string, {
+      date: string;
+      recorded_seconds: number;
+      approved_seconds: number;
+      pending_seconds: number;
+      adjustment_seconds: number;
+      tasks: any[];
+    }>();
+
+    for (const row of rows) {
+      const recSec = parseInt(row.recorded_seconds, 10) || 0;
+      const appSec = (row.approval_status === "APPROVED" || row.approval_status === "ADJUSTED")
+        ? (parseInt(row.approved_seconds, 10) || 0)
+        : 0;
+      const pendSec = row.approval_status === "PENDING" ? recSec : 0;
+      const adjSec = row.approval_status === "ADJUSTED" ? (appSec - recSec) : 0;
+
+      totalRecorded += recSec;
+      totalApproved += appSec;
+      totalPending += pendSec;
+      totalAdjustment += adjSec;
+
+      if (!daysMap.has(row.log_date)) {
+        daysMap.set(row.log_date, {
+          date: row.log_date,
+          recorded_seconds: 0,
+          approved_seconds: 0,
+          pending_seconds: 0,
+          adjustment_seconds: 0,
+          tasks: [],
+        });
+      }
+
+      const dayGroup = daysMap.get(row.log_date)!;
+      dayGroup.recorded_seconds += recSec;
+      dayGroup.approved_seconds += appSec;
+      dayGroup.pending_seconds += pendSec;
+      dayGroup.adjustment_seconds += adjSec;
+      dayGroup.tasks.push({
+        task_id: row.task_id,
+        task_name: row.task_name,
+        task_no: row.task_no,
+        project_id: row.project_id,
+        project_name: row.project_name,
+        recorded_seconds: recSec,
+        approved_seconds: appSec,
+        status: row.approval_status,
+        adjustment_reason: row.adjustment_reason,
+        rejection_reason: row.rejection_reason,
+        manager_comment: row.manager_comment,
+        logs_count: parseInt(row.logs_count, 10) || 1,
+      });
+    }
+
+    return {
+      summary: {
+        total_recorded_seconds: totalRecorded,
+        total_approved_seconds: totalApproved,
+        total_pending_seconds: totalPending,
+        total_adjustment_seconds: totalAdjustment,
+      },
+      days: Array.from(daysMap.values()),
+    };
+  }
+
+  /**
+   * Get team timesheet with member breakdowns and tasks for managers/leads
+   */
+  public static async getTeamTimesheet(params: {
+    teamId: string;
+    userId: string;
+    isAdmin?: boolean;
+    employeeId?: string;
+    projectId?: string;
+    status?: string;
+    startDate?: string;
+    endDate?: string;
+  }): Promise<{
+    summary: {
+      total_recorded_seconds: number;
+      total_approved_seconds: number;
+      total_pending_seconds: number;
+      total_adjustment_seconds: number;
+      total_members_count: number;
+      total_tasks_count: number;
+    };
+    members: any[];
+  }> {
+    const { teamId, userId, isAdmin, employeeId, projectId, status, startDate, endDate } = params;
+
+    let memberFilter = "";
+    const queryParams: any[] = [teamId];
+    let paramIndex = 2;
+
+    if (!isAdmin) {
+      memberFilter = `
+        AND (
+          tm.reports_to_member_id IN (SELECT id FROM team_members WHERE user_id = $${paramIndex++} AND team_id = $1)
+          OR tm.id IN (SELECT id FROM team_members WHERE user_id = $${paramIndex - 1} AND team_id = $1)
+        )
+      `;
+      queryParams.push(userId);
+    }
+
+    if (employeeId) {
+      memberFilter += ` AND (tm.id = $${paramIndex} OR tm.user_id = $${paramIndex++})`;
+      queryParams.push(employeeId);
+    }
+
+    let projectFilter = "";
+    if (projectId) {
+      projectFilter = ` AND p.id = $${paramIndex++}`;
+      queryParams.push(projectId);
+    }
+
+    let dateFilter = "";
+    if (startDate && endDate) {
+      dateFilter = ` AND twl.created_at >= $${paramIndex++} AND twl.created_at <= $${paramIndex++}`;
+      queryParams.push(startDate, endDate);
+    }
+
+    let statusFilter = "";
+    if (status && status !== "ALL") {
+      statusFilter = ` AND tta.status = $${paramIndex++}`;
+      queryParams.push(status);
+    }
+
+    const query = `
+      SELECT 
+        tm.id AS team_member_id,
+        u.id AS user_id,
+        u.name AS member_name,
+        u.email AS member_email,
+        u.avatar_url AS member_avatar_url,
+        r.name AS role_name,
+        COALESCE(SUM(twl.time_spent), 0) AS recorded_seconds,
+        COALESCE(SUM(CASE WHEN tta.status IN ('APPROVED', 'ADJUSTED') THEN tta.approved_duration ELSE 0 END), 0) AS approved_seconds,
+        COALESCE(SUM(CASE WHEN tta.status = 'PENDING' THEN tta.recorded_duration ELSE 0 END), 0) AS pending_seconds,
+        COALESCE(SUM(CASE WHEN tta.status = 'ADJUSTED' THEN (tta.approved_duration - tta.recorded_duration) ELSE 0 END), 0) AS adjustment_seconds,
+        COUNT(DISTINCT t.id) AS tasks_count
+      FROM team_members tm
+      JOIN users u ON u.id = tm.user_id
+      LEFT JOIN roles r ON r.id = tm.role_id
+      LEFT JOIN task_work_log twl ON twl.user_id = u.id ${dateFilter}
+      LEFT JOIN tasks t ON t.id = twl.task_id
+      LEFT JOIN projects p ON p.id = t.project_id AND p.team_id = $1 ${projectFilter}
+      LEFT JOIN task_time_approvals tta ON tta.task_id = t.id AND tta.team_member_id = tm.id ${statusFilter}
+      WHERE tm.team_id = $1 AND tm.active = TRUE ${memberFilter}
+      GROUP BY tm.id, u.id, u.name, u.email, u.avatar_url, r.name
+      ORDER BY u.name ASC;
+    `;
+
+    const result = await db.query(query, queryParams);
+    const members = result.rows.map((row: any) => ({
+      team_member_id: row.team_member_id,
+      user_id: row.user_id,
+      name: row.member_name,
+      email: row.member_email,
+      avatar_url: row.member_avatar_url,
+      role_name: row.role_name,
+      tasks_count: parseInt(row.tasks_count, 10) || 0,
+      recorded_seconds: parseInt(row.recorded_seconds, 10) || 0,
+      approved_seconds: parseInt(row.approved_seconds, 10) || 0,
+      pending_seconds: parseInt(row.pending_seconds, 10) || 0,
+      adjustment_seconds: parseInt(row.adjustment_seconds, 10) || 0,
+    }));
+
+    let totalRecorded = 0;
+    let totalApproved = 0;
+    let totalPending = 0;
+    let totalAdjustment = 0;
+    let totalTasks = 0;
+
+    for (const m of members) {
+      totalRecorded += m.recorded_seconds;
+      totalApproved += m.approved_seconds;
+      totalPending += m.pending_seconds;
+      totalAdjustment += m.adjustment_seconds;
+      totalTasks += m.tasks_count;
+    }
+
+    return {
+      summary: {
+        total_recorded_seconds: totalRecorded,
+        total_approved_seconds: totalApproved,
+        total_pending_seconds: totalPending,
+        total_adjustment_seconds: totalAdjustment,
+        total_members_count: members.length,
+        total_tasks_count: totalTasks,
+      },
+      members,
+    };
+  }
 }
+

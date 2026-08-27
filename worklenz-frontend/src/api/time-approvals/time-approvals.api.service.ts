@@ -71,4 +71,50 @@ export const timeApprovalsApiService = {
     const response = await apiClient.get(`${rootUrl}/timesheet-summary`, { params });
     return response.data;
   },
+
+  getMyTimesheet: async (params?: {
+    start_date?: string;
+    end_date?: string;
+    view?: 'daily' | 'weekly' | 'monthly';
+  }): Promise<IServerResponse<{
+    summary: {
+      total_recorded_seconds: number;
+      total_approved_seconds: number;
+      total_pending_seconds: number;
+      total_adjustment_seconds: number;
+    };
+    days: Array<{
+      date: string;
+      recorded_seconds: number;
+      approved_seconds: number;
+      pending_seconds: number;
+      adjustment_seconds: number;
+      tasks: any[];
+    }>;
+  }>> => {
+    const response = await apiClient.get(`${API_BASE_URL}/timesheets/my`, { params });
+    return response.data;
+  },
+
+  getTeamTimesheet: async (params?: {
+    employee_id?: string;
+    project_id?: string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+  }): Promise<IServerResponse<{
+    summary: {
+      total_recorded_seconds: number;
+      total_approved_seconds: number;
+      total_pending_seconds: number;
+      total_adjustment_seconds: number;
+      total_members_count: number;
+      total_tasks_count: number;
+    };
+    members: any[];
+  }>> => {
+    const response = await apiClient.get(`${API_BASE_URL}/timesheets/team`, { params });
+    return response.data;
+  },
 };
+
