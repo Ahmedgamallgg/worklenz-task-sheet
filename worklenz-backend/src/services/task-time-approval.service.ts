@@ -43,6 +43,9 @@ export interface IApprovalFilterParams {
   status?: string;
   startDate?: string;
   endDate?: string;
+  overEstimate?: boolean | string;
+  overMaximum?: boolean | string;
+  search?: string;
 }
 
 export class TaskTimeApprovalService {
@@ -795,7 +798,7 @@ export class TaskTimeApprovalService {
    * Get pending submissions with manager hierarchy filters
    */
   public static async getPendingApprovals(params: IApprovalFilterParams): Promise<ITaskTimeApproval[]> {
-    const { teamId, userId, isAdmin, employeeId, projectId, status = TaskTimeApprovalStatus.PENDING, startDate, endDate } = params;
+    const { teamId, userId, isAdmin, employeeId, projectId, status = TaskTimeApprovalStatus.PENDING, startDate, endDate, overEstimate, overMaximum, search } = params;
 
     // Get current manager's team_member_id
     const memberQuery = `SELECT id FROM team_members WHERE user_id = $1 AND team_id = $2 AND active = TRUE;`;
@@ -826,6 +829,8 @@ export class TaskTimeApprovalService {
         t.task_no,
         t.total_minutes AS task_estimated_minutes,
         t.maximum_approved_minutes,
+        (SELECT name FROM task_statuses WHERE id = t.status_id) AS task_status_name,
+        (SELECT color_code FROM sys_task_status_categories WHERE id = (SELECT category_id FROM task_statuses WHERE id = t.status_id)) AS task_status_color,
         p.id AS project_id,
         p.name AS project_name,
         u.name AS member_name,
@@ -880,6 +885,21 @@ export class TaskTimeApprovalService {
       queryParams.push(startDate, endDate);
     }
 
+    if (overEstimate === true || overEstimate === "true") {
+      query += ` AND (t.total_minutes > 0 AND tta.recorded_duration > (t.total_minutes * 60))`;
+    }
+
+    if (overMaximum === true || overMaximum === "true") {
+      query += ` AND (t.maximum_approved_minutes IS NOT NULL AND t.maximum_approved_minutes > 0 AND tta.recorded_duration > (t.maximum_approved_minutes * 60))`;
+    }
+
+    if (search && typeof search === "string" && search.trim()) {
+      const s = `%${search.trim()}%`;
+      query += ` AND (t.name ILIKE $${paramIndex} OR u.name ILIKE $${paramIndex} OR p.name ILIKE $${paramIndex})`;
+      queryParams.push(s);
+      paramIndex++;
+    }
+
     query += ` ORDER BY tta.submitted_at DESC;`;
 
     const result = await db.query(query, queryParams);
@@ -909,6 +929,8 @@ export class TaskTimeApprovalService {
         t.task_no,
         t.total_minutes AS task_estimated_minutes,
         t.maximum_approved_minutes,
+        (SELECT name FROM task_statuses WHERE id = t.status_id) AS task_status_name,
+        (SELECT color_code FROM sys_task_status_categories WHERE id = (SELECT category_id FROM task_statuses WHERE id = t.status_id)) AS task_status_color,
         p.id AS project_id,
         p.name AS project_name,
         approver_u.name AS approver_name
@@ -937,6 +959,8 @@ export class TaskTimeApprovalService {
         t.description AS task_description,
         t.total_minutes AS task_estimated_minutes,
         t.maximum_approved_minutes,
+        (SELECT name FROM task_statuses WHERE id = t.status_id) AS task_status_name,
+        (SELECT color_code FROM sys_task_status_categories WHERE id = (SELECT category_id FROM task_statuses WHERE id = t.status_id)) AS task_status_color,
         p.id AS project_id,
         p.name AS project_name,
         u.name AS member_name,
@@ -963,6 +987,7 @@ export class TaskTimeApprovalService {
     if (result.rows.length === 0) {
       return { success: false, error: { code: "NOT_FOUND", message: "Approval record not found.", status: 404 } };
     }
+
     const approval = result.rows[0];
 
     // Authorization check

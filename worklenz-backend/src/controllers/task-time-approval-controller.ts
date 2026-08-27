@@ -149,7 +149,7 @@ export default class TaskTimeApprovalController extends WorklenzControllerBase {
   public static async getPendingApprovals(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
     const userId = req.user?.id;
     const teamId = req.user?.team_id;
-    const { employee_id, project_id, status, start_date, end_date } = req.query;
+    const { employee_id, project_id, status, start_date, end_date, over_estimate, over_maximum, search } = req.query;
 
     if (!userId || !teamId) {
       return res.status(400).send(new ServerResponse(false, null, "Authentication required."));
@@ -166,6 +166,9 @@ export default class TaskTimeApprovalController extends WorklenzControllerBase {
       status: status as string,
       startDate: start_date as string,
       endDate: end_date as string,
+      overEstimate: over_estimate === "true",
+      overMaximum: over_maximum === "true",
+      search: search as string,
     });
 
     return res.status(200).send(new ServerResponse(true, data));

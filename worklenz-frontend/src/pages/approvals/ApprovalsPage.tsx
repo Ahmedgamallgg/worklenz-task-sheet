@@ -12,16 +12,23 @@ import {
   message,
   Statistic,
   DatePicker,
+  Button,
+  Switch,
+  Tooltip,
 } from '@/shared/antd-imports';
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   ExclamationCircleOutlined,
   SearchOutlined,
-  CheckOutlined,
-  SyncOutlined,
+  FilterOutlined,
+  ReloadOutlined,
+  WarningOutlined,
+  ClearOutlined,
 } from '@ant-design/icons';
 import { timeApprovalsApiService } from '@/api/time-approvals/time-approvals.api.service';
+import { teamMembersApiService } from '@/api/team-members/teamMembers.api.service';
+import { projectsApiService } from '@/api/projects/projects.api.service';
 import { ITaskTimeApproval, TaskTimeApprovalStatus } from '@/types/time-approval.types';
 import ApprovalsTable from '@/components/approvals/ApprovalsTable';
 import ApprovalActionModal from '@/components/approvals/ApprovalActionModal';
@@ -33,7 +40,19 @@ export const ApprovalsPage: React.FC = () => {
   const [approvals, setApprovals] = useState<ITaskTimeApproval[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<string>('pending');
+
+  // Filter options state
+  const [membersList, setMembersList] = useState<Array<{ id: string; name: string }>>([]);
+  const [projectsList, setProjectsList] = useState<Array<{ id: string; name: string }>>([]);
+
+  // Active filters
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [selectedMemberId, setSelectedMemberId] = useState<string | undefined>(undefined);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined);
+  const [selectedStatus, setSelectedStatus] = useState<TaskTimeApprovalStatus | 'ALL'>('ALL');
+  const [dateRange, setDateRange] = useState<[any, any] | null>(null);
+  const [onlyOverEstimate, setOnlyOverEstimate] = useState<boolean>(false);
+  const [onlyOverMax, setOnlyOverMax] = useState<boolean>(false);
 
   // Modals & Drawers state
   const [selectedApproval, setSelectedApproval] = useState<ITaskTimeApproval | null>(null);
@@ -43,6 +62,40 @@ export const ApprovalsPage: React.FC = () => {
 
   const currentSession = useAuthService().getCurrentSession();
 
+  // Load members and projects for filter dropdowns
+  useEffect(() => {
+    const loadLookups = async () => {
+      try {
+        const [membersRes, projectsRes] = await Promise.all([
+          teamMembersApiService.getAll(),
+          projectsApiService.getProjects(0, 100, null, null, null),
+        ]);
+
+        if (membersRes.done && Array.isArray(membersRes.body)) {
+          setMembersList(
+            membersRes.body.map((m: any) => ({
+              id: m.id,
+              name: m.name || m.user_name || m.email,
+            }))
+          );
+        }
+
+        if (projectsRes.done && projectsRes.body?.data) {
+          setProjectsList(
+            projectsRes.body.data.map((p: any) => ({
+              id: p.id,
+              name: p.name,
+            }))
+          );
+        }
+      } catch (err) {
+        console.error('Failed to load lookup filters:', err);
+      }
+    };
+
+    loadLookups();
+  }, []);
+
   const fetchApprovals = useCallback(async () => {
     if (activeTab === 'timesheet') return;
     try {
@@ -51,9 +104,22 @@ export const ApprovalsPage: React.FC = () => {
       if (activeTab === 'my') {
         res = await timeApprovalsApiService.getMySubmissions();
       } else {
-        const statusFilter = activeTab === 'pending' ? TaskTimeApprovalStatus.PENDING : 'ALL';
+        const statusFilter =
+          activeTab === 'pending'
+            ? TaskTimeApprovalStatus.PENDING
+            : selectedStatus !== 'ALL'
+            ? selectedStatus
+            : 'ALL';
+
         res = await timeApprovalsApiService.getPendingApprovals({
           status: statusFilter,
+          employee_id: selectedMemberId,
+          project_id: selectedProjectId,
+          start_date: dateRange?.[0] ? dateRange[0].toISOString() : undefined,
+          end_date: dateRange?.[1] ? dateRange[1].toISOString() : undefined,
+          over_estimate: onlyOverEstimate || undefined,
+          over_maximum: onlyOverMax || undefined,
+          search: searchQuery.trim() || undefined,
         });
       }
 
@@ -66,11 +132,30 @@ export const ApprovalsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [
+    activeTab,
+    selectedStatus,
+    selectedMemberId,
+    selectedProjectId,
+    dateRange,
+    onlyOverEstimate,
+    onlyOverMax,
+    searchQuery,
+  ]);
 
   useEffect(() => {
     fetchApprovals();
   }, [fetchApprovals]);
+
+  const handleResetFilters = () => {
+    setSearchQuery('');
+    setSelectedMemberId(undefined);
+    setSelectedProjectId(undefined);
+    setSelectedStatus('ALL');
+    setDateRange(null);
+    setOnlyOverEstimate(false);
+    setOnlyOverMax(false);
+  };
 
   const handleOpenActionModal = (approval: ITaskTimeApproval, mode: 'approve' | 'adjust' | 'reject') => {
     setSelectedApproval(approval);
@@ -109,9 +194,34 @@ export const ApprovalsPage: React.FC = () => {
 
   const adjustedCount = approvals.filter(a => a.status === TaskTimeApprovalStatus.ADJUSTED).length;
 
+  const exceededLimitCount = approvals.filter(
+    a => (a.maximum_approved_minutes && a.recorded_duration > a.maximum_approved_minutes * 60) ||
+         (a.task_estimated_minutes && a.recorded_duration > a.task_estimated_minutes * 60)
+  ).length;
+
+  // Local client filter for instant search responsiveness
   const filteredApprovals = approvals.filter(item => {
-    if (!searchQuery) return true;
-    const q = searchQuery.toLowerCase();
+    if (onlyOverEstimate) {
+      if (!item.task_estimated_minutes || item.recorded_duration <= item.task_estimated_minutes * 60) {
+        return false;
+      }
+    }
+    if (onlyOverMax) {
+      if (!item.maximum_approved_minutes || item.recorded_duration <= item.maximum_approved_minutes * 60) {
+        return false;
+      }
+    }
+    if (selectedMemberId && item.team_member_id !== selectedMemberId) {
+      return false;
+    }
+    if (selectedProjectId && item.project_id !== selectedProjectId) {
+      return false;
+    }
+    if (selectedStatus !== 'ALL' && activeTab !== 'pending' && item.status !== selectedStatus) {
+      return false;
+    }
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase().trim();
     return (
       item.task_name?.toLowerCase().includes(q) ||
       item.member_name?.toLowerCase().includes(q) ||
@@ -122,15 +232,22 @@ export const ApprovalsPage: React.FC = () => {
   return (
     <div style={{ padding: '24px 32px', minHeight: '100vh', backgroundColor: '#f0f2f5' }}>
       {/* Header */}
-      <Flex justify="space-between" align="center" style={{ marginBottom: 24 }}>
+      <Flex justify="space-between" align="center" style={{ marginBottom: 20 }}>
         <div>
           <Typography.Title level={3} style={{ margin: 0 }}>
             Time Tracking & Approvals
           </Typography.Title>
           <Typography.Paragraph type="secondary" style={{ margin: 0 }}>
-            Review, adjust, and approve employee logged hours with full audit trail.
+            Review, adjust, and approve team time submissions with comprehensive audit trail, variance analysis, and limit warnings.
           </Typography.Paragraph>
         </div>
+        <Button
+          icon={<ReloadOutlined />}
+          loading={loading}
+          onClick={fetchApprovals}
+        >
+          Refresh
+        </Button>
       </Flex>
 
       {/* Main Table Card */}
@@ -151,58 +268,177 @@ export const ApprovalsPage: React.FC = () => {
             {/* KPI Stats */}
             <Row gutter={[16, 16]} style={{ marginBottom: 20, marginTop: 12 }}>
               <Col xs={24} sm={12} md={6}>
-                <Card bordered={true} style={{ borderRadius: 8 }}>
+                <Card bordered={true} style={{ borderRadius: 8, backgroundColor: '#fffbe6' }}>
                   <Statistic
                     title="Pending Approvals"
                     value={pendingCount}
                     prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
-                    valueStyle={{ color: pendingCount > 0 ? '#fa8c16' : undefined, fontWeight: 700 }}
+                    valueStyle={{ color: pendingCount > 0 ? '#d48806' : undefined, fontWeight: 700 }}
                   />
+                  <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                    {(pendingTotalMinutes / 60).toFixed(1)} hrs awaiting review
+                  </Typography.Text>
                 </Card>
               </Col>
               <Col xs={24} sm={12} md={6}>
-                <Card bordered={true} style={{ borderRadius: 8 }}>
-                  <Statistic
-                    title="Pending Duration"
-                    value={`${(pendingTotalMinutes / 60).toFixed(1)} hrs`}
-                    prefix={<ClockCircleOutlined style={{ color: '#1677ff' }} />}
-                    valueStyle={{ fontWeight: 700 }}
-                  />
-                </Card>
-              </Col>
-              <Col xs={24} sm={12} md={6}>
-                <Card bordered={true} style={{ borderRadius: 8 }}>
+                <Card bordered={true} style={{ borderRadius: 8, backgroundColor: '#f6ffed' }}>
                   <Statistic
                     title="Approved Time"
                     value={`${(approvedTotalMinutes / 60).toFixed(1)} hrs`}
                     prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-                    valueStyle={{ color: '#52c41a', fontWeight: 700 }}
+                    valueStyle={{ color: '#389e0d', fontWeight: 700 }}
                   />
+                  <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                    {approvedTotalMinutes} total approved minutes
+                  </Typography.Text>
                 </Card>
               </Col>
               <Col xs={24} sm={12} md={6}>
-                <Card bordered={true} style={{ borderRadius: 8 }}>
+                <Card bordered={true} style={{ borderRadius: 8, backgroundColor: '#f9f0ff' }}>
                   <Statistic
                     title="Adjusted Submissions"
                     value={adjustedCount}
                     prefix={<ExclamationCircleOutlined style={{ color: '#722ed1' }} />}
-                    valueStyle={{ fontWeight: 700 }}
+                    valueStyle={{ color: '#531dab', fontWeight: 700 }}
                   />
+                  <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                    With manager adjustment reasons
+                  </Typography.Text>
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <Card bordered={true} style={{ borderRadius: 8, backgroundColor: exceededLimitCount > 0 ? '#fff1f0' : '#fafafa' }}>
+                  <Statistic
+                    title="Exceeded Limits / Est."
+                    value={exceededLimitCount}
+                    prefix={<WarningOutlined style={{ color: exceededLimitCount > 0 ? '#ff4d4f' : '#8c8c8c' }} />}
+                    valueStyle={{ color: exceededLimitCount > 0 ? '#cf1322' : undefined, fontWeight: 700 }}
+                  />
+                  <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                    Over estimate or maximum cap
+                  </Typography.Text>
                 </Card>
               </Col>
             </Row>
 
-            <Flex justify="flex-end" align="center" style={{ marginBottom: 16 }}>
-              <Input
-                placeholder="Search employee, task, project..."
-                prefix={<SearchOutlined />}
-                allowClear
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                style={{ width: 280 }}
-              />
-            </Flex>
+            {/* Filter Toolbar */}
+            {activeTab !== 'my' && (
+              <Card
+                size="small"
+                style={{
+                  marginBottom: 16,
+                  backgroundColor: '#fafafa',
+                  borderRadius: 6,
+                  borderColor: '#f0f0f0',
+                }}
+              >
+                <Row gutter={[12, 12]} align="middle">
+                  {/* Search Input */}
+                  <Col xs={24} sm={12} md={6}>
+                    <Input
+                      placeholder="Search employee, task, project..."
+                      prefix={<SearchOutlined />}
+                      allowClear
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                    />
+                  </Col>
 
+                  {/* Employee Filter */}
+                  <Col xs={24} sm={12} md={4}>
+                    <Select
+                      placeholder="All Employees"
+                      allowClear
+                      showSearch
+                      optionFilterProp="children"
+                      value={selectedMemberId}
+                      onChange={setSelectedMemberId}
+                      style={{ width: '100%' }}
+                      options={membersList.map(m => ({ label: m.name, value: m.id }))}
+                    />
+                  </Col>
+
+                  {/* Project Filter */}
+                  <Col xs={24} sm={12} md={4}>
+                    <Select
+                      placeholder="All Projects"
+                      allowClear
+                      showSearch
+                      optionFilterProp="children"
+                      value={selectedProjectId}
+                      onChange={setSelectedProjectId}
+                      style={{ width: '100%' }}
+                      options={projectsList.map(p => ({ label: p.name, value: p.id }))}
+                    />
+                  </Col>
+
+                  {/* Status Filter (when in 'all' tab) */}
+                  {activeTab === 'all' && (
+                    <Col xs={24} sm={12} md={3}>
+                      <Select
+                        placeholder="Status"
+                        value={selectedStatus}
+                        onChange={setSelectedStatus}
+                        style={{ width: '100%' }}
+                        options={[
+                          { label: 'All Statuses', value: 'ALL' },
+                          { label: 'Pending', value: TaskTimeApprovalStatus.PENDING },
+                          { label: 'Approved', value: TaskTimeApprovalStatus.APPROVED },
+                          { label: 'Adjusted', value: TaskTimeApprovalStatus.ADJUSTED },
+                          { label: 'Rejected', value: TaskTimeApprovalStatus.REJECTED },
+                        ]}
+                      />
+                    </Col>
+                  )}
+
+                  {/* Date Range Filter */}
+                  <Col xs={24} sm={12} md={activeTab === 'all' ? 4 : 5}>
+                    <DatePicker.RangePicker
+                      value={dateRange}
+                      onChange={(dates) => setDateRange(dates as any)}
+                      style={{ width: '100%' }}
+                    />
+                  </Col>
+
+                  {/* Toggles & Clear Filters */}
+                  <Col xs={24} sm={24} md={activeTab === 'all' ? 3 : 5}>
+                    <Flex align="center" justify="flex-end" gap={12} wrap="wrap">
+                      <Tooltip title="Filter tasks that exceeded the estimated time">
+                        <Flex align="center" gap={4}>
+                          <Switch
+                            size="small"
+                            checked={onlyOverEstimate}
+                            onChange={setOnlyOverEstimate}
+                          />
+                          <Typography.Text style={{ fontSize: 11 }}>Over Est</Typography.Text>
+                        </Flex>
+                      </Tooltip>
+
+                      <Tooltip title="Filter tasks that exceeded the maximum approved limit">
+                        <Flex align="center" gap={4}>
+                          <Switch
+                            size="small"
+                            checked={onlyOverMax}
+                            onChange={setOnlyOverMax}
+                          />
+                          <Typography.Text style={{ fontSize: 11 }}>Over Max</Typography.Text>
+                        </Flex>
+                      </Tooltip>
+
+                      <Button
+                        size="small"
+                        icon={<ClearOutlined />}
+                        onClick={handleResetFilters}
+                      >
+                        Reset
+                      </Button>
+                    </Flex>
+                  </Col>
+                </Row>
+              </Card>
+            )}
+
+            {/* Approvals Table */}
             <ApprovalsTable
               data={filteredApprovals}
               loading={loading}

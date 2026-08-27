@@ -27,6 +27,9 @@ export const timeApprovalsApiService = {
     project_id?: string;
     start_date?: string;
     end_date?: string;
+    over_estimate?: boolean;
+    over_maximum?: boolean;
+    search?: string;
   }): Promise<IServerResponse<ITaskTimeApproval[]>> => {
     const response = await apiClient.get(`${rootUrl}/pending`, { params });
     return response.data;

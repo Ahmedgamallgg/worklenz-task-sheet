@@ -52,6 +52,9 @@ export interface ITaskTimeApproval {
   
   // Joined presentation fields
   task_name?: string;
+  task_no?: number;
+  task_status_name?: string;
+  task_status_color?: string;
   project_id?: string;
   project_name?: string;
   team_id?: string;
@@ -66,3 +69,4 @@ export interface ITaskTimeApproval {
   variance_seconds?: number;
   variance_percentage?: number;
 }
+

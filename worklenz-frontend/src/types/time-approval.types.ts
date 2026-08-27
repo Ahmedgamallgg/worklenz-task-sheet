@@ -37,6 +37,8 @@ export interface ITaskTimeApproval {
   task_description?: string;
   task_estimated_minutes?: number;
   maximum_approved_minutes?: number | null;
+  task_status_name?: string;
+  task_status_color?: string;
   project_id?: string;
   project_name?: string;
   team_id?: string;

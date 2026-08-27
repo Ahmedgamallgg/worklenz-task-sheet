@@ -11,8 +11,10 @@ import {
   Divider,
   Flex,
   Tag,
+  Button,
   message,
 } from '@/shared/antd-imports';
+import { WarningOutlined, ExclamationCircleOutlined, InfoCircleOutlined } from '@ant-design/icons';
 import { ITaskTimeApproval, TaskTimeApprovalStatus } from '@/types/time-approval.types';
 import { timeApprovalsApiService } from '@/api/time-approvals/time-approvals.api.service';
 
@@ -53,7 +55,24 @@ export const ApprovalActionModal: React.FC<ApprovalActionModalProps> = ({
 
   const recordedMinutes = Math.round(approval.recorded_duration / 60);
   const estimatedMinutes = approval.task_estimated_minutes || 0;
-  const varianceMinutes = recordedMinutes - estimatedMinutes;
+  const maxApprovedMinutes = approval.maximum_approved_minutes || 0;
+  const varianceMinutes = estimatedMinutes > 0 ? recordedMinutes - estimatedMinutes : 0;
+
+  const isOverMax = maxApprovedMinutes > 0 && recordedMinutes > maxApprovedMinutes;
+  const isOverEst = estimatedMinutes > 0 && recordedMinutes > estimatedMinutes;
+
+  const formatDurationDisplay = (totalMinutes: number) => {
+    if (totalMinutes <= 0) return '0m';
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+    if (hours > 0) return `${hours}h`;
+    return `${mins}m`;
+  };
+
+  const handleApplyPreset = (minutes: number) => {
+    form.setFieldsValue({ approved_minutes: minutes });
+  };
 
   const handleSubmit = async () => {
     try {
@@ -65,7 +84,7 @@ export const ApprovalActionModal: React.FC<ApprovalActionModalProps> = ({
           manager_comment: values.manager_comment,
         });
         if (res.done) {
-          message.success('Time approval confirmed successfully.');
+          message.success('Time approved successfully.');
           onSuccess();
           onClose();
         } else {
@@ -91,7 +110,7 @@ export const ApprovalActionModal: React.FC<ApprovalActionModalProps> = ({
           manager_comment: values.manager_comment,
         });
         if (res.done) {
-          message.success('Time submission rejected.');
+          message.success('Time submission returned/rejected.');
           onSuccess();
           onClose();
         } else {
@@ -99,8 +118,8 @@ export const ApprovalActionModal: React.FC<ApprovalActionModalProps> = ({
         }
       }
     } catch (err: any) {
-      if (err?.errorFields) return; // Antd validation error
-      message.error(err?.response?.data?.message || 'Error processing request.');
+      if (err?.errorFields) return; // Antd form validation error
+      message.error(err?.response?.data?.message || err?.message || 'Error processing request.');
     } finally {
       setSubmitting(false);
     }
@@ -128,41 +147,94 @@ export const ApprovalActionModal: React.FC<ApprovalActionModalProps> = ({
         danger: actionType === 'reject',
         type: 'primary',
       }}
-      width={560}
+      width={600}
       destroyOnClose
     >
       <div style={{ marginBlock: 16 }}>
-        {/* Task and Member Summary */}
-        <Flex vertical gap={6} style={{ backgroundColor: '#f9f9f9', padding: 12, borderRadius: 8, marginBottom: 16 }}>
-          <Flex justify="space-between" align="center">
-            <Typography.Text strong style={{ fontSize: 14 }}>
-              {approval.task_name}
-            </Typography.Text>
-            <Tag color="blue">{approval.project_name}</Tag>
-          </Flex>
-          <Flex justify="space-between" align="center" style={{ fontSize: 12 }}>
-            <Typography.Text type="secondary">
+        {/* Task & Member Overview Card */}
+        <Flex vertical gap={8} style={{ backgroundColor: '#f9f9f9', padding: 14, borderRadius: 8, marginBottom: 16 }}>
+          <Flex justify="space-between" align="start">
+            <div>
+              <Typography.Text strong style={{ fontSize: 14 }}>
+                {approval.task_name}
+              </Typography.Text>
+              <div>
+                <Tag color="geekblue" style={{ fontSize: 11, marginTop: 4 }}>
+                  {approval.project_name}
+                </Tag>
+                {approval.task_status_name && (
+                  <Tag
+                    style={{
+                      fontSize: 11,
+                      marginTop: 4,
+                      borderColor: approval.task_status_color || undefined,
+                      color: approval.task_status_color || undefined,
+                    }}
+                  >
+                    {approval.task_status_name}
+                  </Tag>
+                )}
+              </div>
+            </div>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
               Employee: <Typography.Text strong>{approval.member_name}</Typography.Text>
             </Typography.Text>
-            <Typography.Text type="secondary">
-              Recorded: <Typography.Text strong>{recordedMinutes} mins</Typography.Text>
-            </Typography.Text>
           </Flex>
-          {estimatedMinutes > 0 && (
-            <Flex justify="space-between" align="center" style={{ fontSize: 12 }}>
-              <Typography.Text type="secondary">
-                Estimated: <Typography.Text>{estimatedMinutes} mins</Typography.Text>
+
+          <Divider style={{ margin: '4px 0' }} />
+
+          <Flex justify="space-between" align="center" style={{ fontSize: 12 }}>
+            <div>
+              <Typography.Text type="secondary">Estimated: </Typography.Text>
+              <Typography.Text strong>{estimatedMinutes > 0 ? formatDurationDisplay(estimatedMinutes) : '—'}</Typography.Text>
+            </div>
+            <div>
+              <Typography.Text type="secondary">Recorded: </Typography.Text>
+              <Typography.Text strong style={{ color: '#1677ff' }}>{formatDurationDisplay(recordedMinutes)}</Typography.Text>
+            </div>
+            <div>
+              <Typography.Text type="secondary">Max Limit: </Typography.Text>
+              <Typography.Text strong style={{ color: isOverMax ? '#cf1322' : undefined }}>
+                {maxApprovedMinutes > 0 ? formatDurationDisplay(maxApprovedMinutes) : '—'}
               </Typography.Text>
-              <Typography.Text type={varianceMinutes > 0 ? 'danger' : 'success'}>
-                Variance: {varianceMinutes > 0 ? `+${varianceMinutes}` : varianceMinutes} mins
-                {approval.variance_percentage !== undefined && approval.variance_percentage !== null && ` (${approval.variance_percentage}%)`}
-              </Typography.Text>
-            </Flex>
-          )}
+            </div>
+            {estimatedMinutes > 0 && (
+              <div>
+                <Typography.Text type="secondary">Variance: </Typography.Text>
+                <Typography.Text type={varianceMinutes > 0 ? 'danger' : 'success'} strong>
+                  {varianceMinutes > 0 ? `+${formatDurationDisplay(varianceMinutes)}` : formatDurationDisplay(varianceMinutes)}
+                  {approval.variance_percentage !== undefined && approval.variance_percentage !== null && ` (${approval.variance_percentage}%)`}
+                </Typography.Text>
+              </div>
+            )}
+          </Flex>
         </Flex>
 
+        {/* Exceeds Limits Warning Banners */}
+        {isOverMax && (
+          <Alert
+            type="error"
+            showIcon
+            icon={<WarningOutlined />}
+            message="Exceeds Maximum Approved Time Limit"
+            description={`The employee recorded ${formatDurationDisplay(recordedMinutes)}, which exceeds the maximum approved ceiling of ${formatDurationDisplay(maxApprovedMinutes)} by ${formatDurationDisplay(recordedMinutes - maxApprovedMinutes)}.`}
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
+        {!isOverMax && isOverEst && (
+          <Alert
+            type="warning"
+            showIcon
+            icon={<ExclamationCircleOutlined />}
+            message="Exceeds Estimated Time"
+            description={`The recorded time of ${formatDurationDisplay(recordedMinutes)} is ${formatDurationDisplay(varianceMinutes)} (+${approval.variance_percentage}%) over the estimated time of ${formatDurationDisplay(estimatedMinutes)}.`}
+            style={{ marginBottom: 16 }}
+          />
+        )}
+
         <Form form={form} layout="vertical" initialValues={{ actionType: initialMode }}>
-          <Form.Item label="Decision" name="actionType">
+          <Form.Item label="Decision Action" name="actionType">
             <Radio.Group
               value={actionType}
               onChange={e => setActionType(e.target.value)}
@@ -176,7 +248,7 @@ export const ApprovalActionModal: React.FC<ApprovalActionModalProps> = ({
                 Adjust Duration
               </Radio.Button>
               <Radio.Button value="reject" style={{ flex: 1, textAlign: 'center' }}>
-                Reject
+                Reject / Return
               </Radio.Button>
             </Radio.Group>
           </Form.Item>
@@ -185,7 +257,7 @@ export const ApprovalActionModal: React.FC<ApprovalActionModalProps> = ({
             <Alert
               type="success"
               showIcon
-              message={`Approve recorded time of ${recordedMinutes} minutes (${(recordedMinutes / 60).toFixed(1)}h).`}
+              message={`Approve recorded time of ${formatDurationDisplay(recordedMinutes)} (${recordedMinutes} mins).`}
               style={{ marginBottom: 16 }}
             />
           )}
@@ -193,16 +265,18 @@ export const ApprovalActionModal: React.FC<ApprovalActionModalProps> = ({
           {actionType === 'adjust' && (
             <>
               <Alert
-                type="warning"
+                type="info"
                 showIcon
-                message="Adjusting the approved duration will NOT modify the employee's original logged entries. Both are preserved for reporting auditability."
+                icon={<InfoCircleOutlined />}
+                message="Architectural Rule: Original recorded time logs are NEVER overwritten. Both recorded time and manager-approved time are permanently preserved."
                 style={{ marginBottom: 16 }}
               />
+
               <Form.Item
                 label="Approved Minutes"
                 name="approved_minutes"
                 rules={[
-                  { required: true, message: 'Please specify approved minutes' },
+                  { required: true, message: 'Please specify approved duration in minutes' },
                   { type: 'number', min: 0, message: 'Minutes must be at least 0' },
                 ]}
               >
@@ -213,17 +287,41 @@ export const ApprovalActionModal: React.FC<ApprovalActionModalProps> = ({
                   addonAfter="Minutes"
                 />
               </Form.Item>
+
+              {/* Quick adjustment presets */}
+              <Flex gap={8} style={{ marginBottom: 16 }} wrap="wrap">
+                <Typography.Text type="secondary" style={{ fontSize: 12, lineHeight: '24px' }}>
+                  Quick presets:
+                </Typography.Text>
+                {maxApprovedMinutes > 0 && maxApprovedMinutes !== recordedMinutes && (
+                  <Button size="small" onClick={() => handleApplyPreset(maxApprovedMinutes)}>
+                    Cap to Max ({formatDurationDisplay(maxApprovedMinutes)})
+                  </Button>
+                )}
+                {estimatedMinutes > 0 && estimatedMinutes !== recordedMinutes && (
+                  <Button size="small" onClick={() => handleApplyPreset(estimatedMinutes)}>
+                    Set to Estimated ({formatDurationDisplay(estimatedMinutes)})
+                  </Button>
+                )}
+                <Button size="small" onClick={() => handleApplyPreset(Math.max(0, recordedMinutes - 30))}>
+                  -30 mins
+                </Button>
+                <Button size="small" onClick={() => handleApplyPreset(Math.max(0, recordedMinutes - 60))}>
+                  -1 hour
+                </Button>
+              </Flex>
+
               <Form.Item
                 label="Adjustment Reason (Mandatory)"
                 name="adjustment_reason"
                 rules={[
-                  { required: true, message: 'Adjustment reason is required when modifying time' },
+                  { required: true, message: 'Adjustment reason is required when modifying approved duration' },
                   { whitespace: true, message: 'Adjustment reason cannot be blank' },
                 ]}
               >
                 <Input.TextArea
                   rows={2}
-                  placeholder="Explain why approved duration differs from recorded duration..."
+                  placeholder="Explain why approved duration differs from recorded duration (e.g. 1.5 hours was out of scope)..."
                 />
               </Form.Item>
             </>
@@ -234,7 +332,7 @@ export const ApprovalActionModal: React.FC<ApprovalActionModalProps> = ({
               <Alert
                 type="error"
                 showIcon
-                message="Rejection returns the submission to the employee for correction and resubmission."
+                message="Returning this submission allows the employee to adjust time logs and resubmit for approval."
                 style={{ marginBottom: 16 }}
               />
               <Form.Item
@@ -247,14 +345,14 @@ export const ApprovalActionModal: React.FC<ApprovalActionModalProps> = ({
               >
                 <Input.TextArea
                   rows={2}
-                  placeholder="Explain what needs to be corrected before resubmission..."
+                  placeholder="Explain what needs to be fixed before resubmission..."
                 />
               </Form.Item>
             </>
           )}
 
           <Form.Item label="Manager Comment (Optional)" name="manager_comment">
-            <Input.TextArea rows={2} placeholder="Optional message or note for the team member..." />
+            <Input.TextArea rows={2} placeholder="Optional feedback or guidance note for the team member..." />
           </Form.Item>
         </Form>
       </div>
