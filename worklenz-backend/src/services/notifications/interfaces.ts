@@ -4,7 +4,7 @@ export interface INotification {
 }
 
 export interface IReceiver {
-  receiver_socket_id: string;
+  receiver_socket_id?: string;
   team: string;
   team_id: string;
   message: string;
@@ -17,7 +17,7 @@ export interface IReceiver {
 export interface ICreateNotificationRequest {
   userId: string;
   teamId: string;
-  socketId: string;
+  socketId?: string;
   message: string;
   taskId: string | null;
   projectId: string | null;

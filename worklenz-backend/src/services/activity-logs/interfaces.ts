@@ -32,6 +32,7 @@ export enum IActivityLogAttributeTypes {
   PHASE = "phase",
   PROGRESS = "progress",
   WEIGHT = "weight",
+  TIME_APPROVAL = "time_approval",
 }
 
 export enum IActivityLogChangeType {

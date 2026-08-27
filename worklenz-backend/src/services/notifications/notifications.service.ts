@@ -80,11 +80,13 @@ export class NotificationsService {
       notification.setProjectId(receiver.project_id);
     }
 
-    IO.emit(
-      SocketEvents.NOTIFICATIONS_UPDATE,
-      receiver.receiver_socket_id,
-      notification,
-    );
+    if (receiver.receiver_socket_id) {
+      IO.emit(
+        SocketEvents.NOTIFICATIONS_UPDATE,
+        receiver.receiver_socket_id,
+        notification,
+      );
+    }
   }
 
   public static async sendInvitation(
