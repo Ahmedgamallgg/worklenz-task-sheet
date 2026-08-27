@@ -492,6 +492,7 @@ export const MyTeamDashboard: React.FC = () => {
                   rowKey="id"
                   pagination={false}
                   size="middle"
+                  scroll={{ x: 600 }}
                   locale={{
                     emptyText: (
                       <Empty
@@ -533,6 +534,7 @@ export const MyTeamDashboard: React.FC = () => {
                   rowKey="team_member_id"
                   pagination={{ pageSize: 5, size: 'small', showSizeChanger: false }}
                   size="small"
+                  scroll={{ x: 450 }}
                   locale={{
                     emptyText: (
                       <Empty

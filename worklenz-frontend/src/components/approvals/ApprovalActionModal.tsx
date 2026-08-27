@@ -147,7 +147,8 @@ export const ApprovalActionModal: React.FC<ApprovalActionModalProps> = ({
         danger: actionType === 'reject',
         type: 'primary',
       }}
-      width={600}
+      width={typeof window !== 'undefined' && window.innerWidth < 640 ? '95vw' : 600}
+      style={{ maxWidth: '95vw', top: 20 }}
       destroyOnClose
     >
       <div style={{ marginBlock: 16 }}>

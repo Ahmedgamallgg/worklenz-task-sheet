@@ -24,7 +24,7 @@ const STATIC_CACHE_URLS = [
   // Ant Design and other critical CSS/JS will be cached as they're requested
 ];
 
-// API endpoints that can be cached
+// API endpoints that can be safely cached (static lookup/dictionary metadata only)
 const CACHEABLE_API_PATTERNS = [
   /\/api\/project-categories/,
   /\/api\/project-statuses/,
@@ -32,14 +32,21 @@ const CACHEABLE_API_PATTERNS = [
   /\/api\/task-statuses/,
   /\/api\/job-titles/,
   /\/api\/teams\/\d+\/members/,
-  /\/api\/auth\/user/, // Cache user info for offline access
 ];
 
-// Resources that should never be cached
+// Resources and sensitive endpoints that should never be cached
 const NEVER_CACHE_PATTERNS = [
-  /\/api\/auth\/login/,
-  /\/api\/auth\/logout/,
+  /\/api\/auth\//,
+  /\/api\/task-time-approvals/,
+  /\/api\/approvals/,
+  /\/api\/timesheets/,
+  /\/api\/time-entries/,
+  /\/api\/task-work-log/,
+  /\/api\/manager\//,
+  /\/api\/reports\//,
+  /\/api\/tasks\//,
   /\/api\/notifications/,
+  /\/api\/v1\/imports/,
   /\/socket\.io/,
   /\.hot-update\./,
   /sw\.js$/,
@@ -132,9 +139,14 @@ async function handleFetchRequest(request) {
       return await cacheFirstStrategy(request, CACHE_NAMES.IMAGES);
     }
 
-    // API requests - Network First with fallback
-    if (isAPIRequest(url)) {
+    // Safe Cacheable Lookup API requests (dictionary metadata) - Network First with cache fallback
+    if (isCacheableAPIRequest(url)) {
       return await networkFirstStrategy(request, CACHE_NAMES.API);
+    }
+
+    // Dynamic API requests (approvals, timesheets, tasks, logs) - Network Only to prevent stale business data
+    if (isAPIRequest(url)) {
+      return await networkOnlyStrategy(request);
     }
 
     // HTML pages - Network First (ensure fresh content for SPA routing)
@@ -146,6 +158,16 @@ async function handleFetchRequest(request) {
     return await networkFirstStrategy(request, CACHE_NAMES.DYNAMIC);
   } catch (error) {
     console.error('Service Worker: Fetch failed', error);
+    return createOfflineResponse(request);
+  }
+}
+
+// Network Only Strategy - Strictly network, fallback to offline error
+async function networkOnlyStrategy(request) {
+  try {
+    return await fetch(request);
+  } catch (error) {
+    console.warn('Network Only: Network failed for request', request.url, error);
     return createOfflineResponse(request);
   }
 }
@@ -256,11 +278,12 @@ function isImageRequest(url) {
   );
 }
 
+function isCacheableAPIRequest(url) {
+  return CACHEABLE_API_PATTERNS.some(pattern => pattern.test(url.pathname));
+}
+
 function isAPIRequest(url) {
-  return (
-    url.pathname.startsWith('/api/') ||
-    CACHEABLE_API_PATTERNS.some(pattern => pattern.test(url.pathname))
-  );
+  return url.pathname.startsWith('/api/');
 }
 
 function isHTMLRequest(request) {
@@ -284,11 +307,12 @@ function createOfflineResponse(request) {
   }
 
   if (isAPIRequest(new URL(request.url))) {
-    // Return empty array or error for API requests
+    // Return explicit offline error response for dynamic API requests
     return new Response(
       JSON.stringify({
-        error: 'Offline',
-        message: 'This feature requires an internet connection',
+        done: false,
+        error: 'OFFLINE',
+        message: "You're offline. This action requires an internet connection.",
       }),
       {
         status: 503,

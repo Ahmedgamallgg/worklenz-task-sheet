@@ -389,10 +389,20 @@ apiClient.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    const errorMessage = (errorResponse?.data as any)?.message || message || 'An unexpected error occurred';
-    const errorTitle = 'Error';
+    const isOffline =
+      error.code === 'ERR_NETWORK' ||
+      (typeof navigator !== 'undefined' && !navigator.onLine) ||
+      errorResponse?.status === 503;
 
-    if (error.code !== 'ERR_NETWORK') {
+    if (isOffline) {
+      const offlineMsg =
+        (errorResponse?.data as any)?.message ||
+        "You're offline. This action requires an internet connection.";
+      alertService.error('Offline', offlineMsg);
+    } else {
+      const errorMessage =
+        (errorResponse?.data as any)?.message || message || 'An unexpected error occurred';
+      const errorTitle = 'Error';
       alertService.error(errorTitle, errorMessage);
     }
 

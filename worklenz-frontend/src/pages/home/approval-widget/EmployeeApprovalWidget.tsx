@@ -281,6 +281,7 @@ export const EmployeeApprovalWidget: React.FC = () => {
               rowKey="id"
               pagination={false}
               size="small"
+              scroll={{ x: 420 }}
               locale={{ emptyText: 'No submissions yet' }}
             />
           </div>

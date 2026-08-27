@@ -343,6 +343,7 @@ export const MyTimesheetView: React.FC<MyTimesheetViewProps> = ({ onOpenTask }) 
         pagination={false}
         rowKey={item => `${item.task_id}-${record.date}`}
         size="small"
+        scroll={{ x: 650 }}
       />
     );
   };
@@ -443,6 +444,7 @@ export const MyTimesheetView: React.FC<MyTimesheetViewProps> = ({ onOpenTask }) 
             columns={columns}
             dataSource={timesheetData.days}
             rowKey="date"
+            scroll={{ x: 750 }}
             expandable={{
               expandedRowRender,
               defaultExpandAllRows: true,

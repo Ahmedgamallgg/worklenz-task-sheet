@@ -113,7 +113,8 @@ export const ApprovalDetailDrawer: React.FC<ApprovalDetailDrawerProps> = ({
       }
       open={open}
       onClose={onClose}
-      width={720}
+      width={typeof window !== 'undefined' && window.innerWidth < 768 ? '100%' : 720}
+      styles={{ body: { padding: typeof window !== 'undefined' && window.innerWidth < 768 ? '12px' : '24px' } }}
       extra={
         approval && approval.status === TaskTimeApprovalStatus.PENDING ? (
           <Space>
@@ -339,6 +340,7 @@ export const ApprovalDetailDrawer: React.FC<ApprovalDetailDrawerProps> = ({
               pagination={false}
               dataSource={approval.time_logs || []}
               rowKey="id"
+              scroll={{ x: 450 }}
               columns={[
                 {
                   title: 'Date & Time',

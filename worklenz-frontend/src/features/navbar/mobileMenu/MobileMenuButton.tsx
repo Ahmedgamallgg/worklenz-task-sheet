@@ -5,6 +5,7 @@ import {
   ProjectOutlined,
   QuestionCircleOutlined,
   ReadOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { Button, Card, Dropdown, Flex, MenuProps, Space, Typography } from '@/shared/antd-imports';
 import React from 'react';
@@ -36,6 +37,10 @@ const MobileMenuButton = () => {
     {
       name: 'reporting',
       icon: React.createElement(ReadOutlined),
+    },
+    {
+      name: 'approvals',
+      icon: React.createElement(CheckCircleOutlined),
     },
     {
       name: 'help',
