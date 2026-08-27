@@ -34,10 +34,13 @@ import {
   fetchTask,
 } from '@/features/task-drawer/task-drawer.slice';
 import { setProjectId } from '@/features/project/project.slice';
+import { useSocket } from '@/socket/socketContext';
+import { SocketEvents } from '@/shared/socket-events';
 
 export const EmployeeApprovalWidget: React.FC = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
+  const { socket } = useSocket();
   const [loading, setLoading] = useState<boolean>(false);
   const [submissions, setSubmissions] = useState<ITaskTimeApproval[]>([]);
   const [stats, setStats] = useState<{
@@ -100,6 +103,18 @@ export const EmployeeApprovalWidget: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Real-time updates via WebSockets
+  useEffect(() => {
+    const handleTimeLogUpdated = () => {
+      loadData();
+    };
+
+    socket?.on(SocketEvents.TASK_TIME_LOG_UPDATED.toString(), handleTimeLogUpdated);
+    return () => {
+      socket?.off(SocketEvents.TASK_TIME_LOG_UPDATED.toString(), handleTimeLogUpdated);
+    };
+  }, [socket, loadData]);
 
   const handleOpenTask = (taskId: string, projectId?: string) => {
     dispatch(setSelectedTaskId(taskId));

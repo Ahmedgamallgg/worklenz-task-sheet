@@ -134,8 +134,14 @@ export class NotificationsService {
       const [data] = result.rows;
       const response = data.res;
 
+      let socketId = request.socketId;
+      if (!socketId && request.userId) {
+        const userRes = await db.query("SELECT socket_id FROM users WHERE id = $1;", [request.userId]);
+        socketId = userRes.rows[0]?.socket_id;
+      }
+
       this.sendNotification({
-        receiver_socket_id: request.socketId,
+        receiver_socket_id: socketId,
         project: response.project,
         message: request.message,
         project_color: response.project_color,

@@ -5,13 +5,14 @@ import { IWorkLenzRequest } from "../interfaces/worklenz-request";
 import { IWorkLenzResponse } from "../interfaces/worklenz-response";
 
 import db from "../config/db";
-import { formatDuration, getColor, toSeconds } from "../shared/utils";
+import { formatDuration, getColor, toSeconds, log_error } from "../shared/utils";
 import { ServerResponse } from "../models/server-response";
 import WorklenzControllerBase from "./worklenz-controller-base";
 import HandleExceptions from "../decorators/handle-exceptions";
 import momentTime from "moment-timezone";
 import { SocketEvents } from "../socket.io/events";
 import { IO } from "../shared/io";
+import { TaskTimeApprovalService } from "../services/task-time-approval.service";
 
 export default class TaskWorklogController extends WorklenzControllerBase {
   @HandleExceptions()
@@ -32,6 +33,11 @@ export default class TaskWorklogController extends WorklenzControllerBase {
     ];
     const result = await db.query(q, params);
     const [data] = result.rows;
+
+    // Check threshold overruns (estimate / maximum approved time)
+    if (seconds_spent > 0 && req.user?.id && id) {
+      TaskTimeApprovalService.checkTaskTimeThresholds(id, req.user.id, seconds_spent, req.user?.team_id).catch(err => log_error(err));
+    }
 
     // Emit socket event to notify all clients about the time log update
     const io = IO.getInstance();
@@ -141,6 +147,11 @@ export default class TaskWorklogController extends WorklenzControllerBase {
     ];
     const result = await db.query(q, params);
     const [data] = result.rows;
+
+    // Check threshold overruns (estimate / maximum approved time)
+    if (data?.task_id && seconds_spent > 0 && req.user?.id) {
+      TaskTimeApprovalService.checkTaskTimeThresholds(data.task_id, req.user.id, seconds_spent, req.user?.team_id).catch(err => log_error(err));
+    }
 
     // Emit socket event to notify all clients about the time log update
     if (data?.task_id) {

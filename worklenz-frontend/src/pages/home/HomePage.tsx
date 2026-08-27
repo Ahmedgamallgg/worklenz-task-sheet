@@ -19,6 +19,8 @@ import { useAppDispatch } from '@/hooks/useAppDispatch';
 import { useAuthService } from '@/hooks/useAuth';
 import { isTeamLeadRole } from '@/types/roles/role.types';
 import { timeApprovalsApiService } from '@/api/time-approvals/time-approvals.api.service';
+import { useSocket } from '@/socket/socketContext';
+import { SocketEvents } from '@/shared/socket-events';
 
 import { fetchProjectStatuses } from '@/features/projects/lookups/projectStatuses/projectStatusesSlice';
 import { fetchProjectCategories } from '@/features/projects/lookups/projectCategories/projectCategoriesSlice';
@@ -46,6 +48,7 @@ const HomePage = memo(() => {
   const isOwnerOrAdmin = authService.isOwnerOrAdmin();
   const currentSession = authService.getCurrentSession();
   const isTeamLead = currentSession?.role_name ? isTeamLeadRole(currentSession.role_name) : false;
+  const { socket } = useSocket();
 
   const [activeContext, setActiveContext] = useState<'my-work' | 'my-team'>('my-work');
   const [isManager, setIsManager] = useState<boolean>(isOwnerOrAdmin || isTeamLead);
@@ -53,24 +56,36 @@ const HomePage = memo(() => {
 
   useDocumentTitle(activeContext === 'my-team' ? 'Team Dashboard' : 'Home');
 
+  const checkManagerStatus = useCallback(async () => {
+    try {
+      const res = await timeApprovalsApiService.getDashboardStats();
+      if (res.done && res.body?.my_team) {
+        if (res.body.my_team.is_manager || isOwnerOrAdmin || isTeamLead) {
+          setIsManager(true);
+          setPendingApprovalsCount(res.body.my_team.pending_approvals_count || 0);
+        }
+      }
+    } catch (e) {
+      // Non-blocking
+    }
+  }, [isOwnerOrAdmin, isTeamLead]);
+
   // Check if user has manager role or reportees
   useEffect(() => {
-    const checkManagerStatus = async () => {
-      try {
-        const res = await timeApprovalsApiService.getDashboardStats();
-        if (res.done && res.body?.my_team) {
-          if (res.body.my_team.is_manager || isOwnerOrAdmin || isTeamLead) {
-            setIsManager(true);
-            setPendingApprovalsCount(res.body.my_team.pending_approvals_count || 0);
-          }
-        }
-      } catch (e) {
-        // Non-blocking
-      }
+    checkManagerStatus();
+  }, [checkManagerStatus]);
+
+  // Real-time updates via WebSockets
+  useEffect(() => {
+    const handleTimeLogUpdated = () => {
+      checkManagerStatus();
     };
 
-    checkManagerStatus();
-  }, [isOwnerOrAdmin, isTeamLead]);
+    socket?.on(SocketEvents.TASK_TIME_LOG_UPDATED.toString(), handleTimeLogUpdated);
+    return () => {
+      socket?.off(SocketEvents.TASK_TIME_LOG_UPDATED.toString(), handleTimeLogUpdated);
+    };
+  }, [socket, checkManagerStatus]);
 
   // Preload TaskDrawer component to prevent dynamic import failures
   useEffect(() => {

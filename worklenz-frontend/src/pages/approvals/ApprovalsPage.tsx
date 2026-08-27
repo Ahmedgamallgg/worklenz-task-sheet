@@ -35,6 +35,8 @@ import ApprovalActionModal from '@/components/approvals/ApprovalActionModal';
 import ApprovalDetailDrawer from '@/components/approvals/ApprovalDetailDrawer';
 import MyTimesheetView from '@/components/timesheets/MyTimesheetView';
 import { useAuthService } from '@/hooks/useAuth';
+import { useSocket } from '@/socket/socketContext';
+import { SocketEvents } from '@/shared/socket-events';
 
 export const ApprovalsPage: React.FC = () => {
   const [approvals, setApprovals] = useState<ITaskTimeApproval[]>([]);
@@ -61,6 +63,7 @@ export const ApprovalsPage: React.FC = () => {
   const [drawerOpen, setDrawerOpen] = useState<boolean>(false);
 
   const currentSession = useAuthService().getCurrentSession();
+  const { socket } = useSocket();
 
   // Load members and projects for filter dropdowns
   useEffect(() => {
@@ -146,6 +149,18 @@ export const ApprovalsPage: React.FC = () => {
   useEffect(() => {
     fetchApprovals();
   }, [fetchApprovals]);
+
+  // Real-time updates via WebSockets
+  useEffect(() => {
+    const handleTimeLogUpdated = () => {
+      fetchApprovals();
+    };
+
+    socket?.on(SocketEvents.TASK_TIME_LOG_UPDATED.toString(), handleTimeLogUpdated);
+    return () => {
+      socket?.off(SocketEvents.TASK_TIME_LOG_UPDATED.toString(), handleTimeLogUpdated);
+    };
+  }, [socket, fetchApprovals]);
 
   const handleResetFilters = () => {
     setSearchQuery('');

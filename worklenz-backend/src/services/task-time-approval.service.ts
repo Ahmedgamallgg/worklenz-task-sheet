@@ -11,6 +11,7 @@ import { NotificationsService } from "./notifications/notifications.service";
 import { IO } from "../shared/io";
 import { SocketEvents } from "../socket.io/events";
 import { IPassportSession } from "../interfaces/passport-session";
+import { log_error } from "../shared/utils";
 import Excel from "exceljs";
 import moment from "moment";
 
@@ -63,6 +64,116 @@ export interface IApprovalReportFilterParams {
 }
 
 export class TaskTimeApprovalService {
+
+  /**
+   * Helper: Format seconds to standard duration string (e.g., "5h 30m", "4h", "45m")
+   */
+  public static formatDurationDisplay(seconds: number | string): string {
+    const sec = typeof seconds === "string" ? parseFloat(seconds) : seconds;
+    if (!sec || isNaN(sec) || sec <= 0) return "0m";
+    const totalMinutes = Math.round(sec / 60);
+    const hours = Math.floor(totalMinutes / 60);
+    const mins = totalMinutes % 60;
+    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
+    if (hours > 0) return `${hours}h`;
+    return `${mins}m`;
+  }
+
+  /**
+   * Helper: Check if task time exceeds estimated time or maximum approved time, and notify manager if crossed
+   */
+  public static async checkTaskTimeThresholds(
+    taskId: string,
+    userId: string,
+    addedSeconds: number,
+    teamId?: string
+  ): Promise<void> {
+    if (!taskId || !userId) return;
+
+    try {
+      // 1. Get task info, estimated minutes, maximum approved minutes, and user's manager
+      const taskQuery = `
+        SELECT t.id, t.name, t.total_minutes, t.maximum_approved_minutes, t.project_id, p.team_id,
+               tm.reports_to_member_id, u.name AS user_name
+        FROM tasks t
+        JOIN projects p ON p.id = t.project_id
+        LEFT JOIN team_members tm ON tm.user_id = $2 AND tm.team_id = p.team_id
+        LEFT JOIN users u ON u.id = $2
+        WHERE t.id = $1;
+      `;
+      const taskRes = await db.query(taskQuery, [taskId, userId]);
+      if (taskRes.rows.length === 0) return;
+      const task = taskRes.rows[0];
+      const effectiveTeamId = teamId || task.team_id;
+
+      // 2. Get total recorded time on this task
+      const totalTimeQuery = `
+        SELECT COALESCE(SUM(time_spent), 0) AS total_seconds
+        FROM task_work_log
+        WHERE task_id = $1;
+      `;
+      const totalRes = await db.query(totalTimeQuery, [taskId]);
+      const totalRecordedSeconds = parseFloat(totalRes.rows[0]?.total_seconds || "0");
+      const totalBeforeSeconds = Math.max(0, totalRecordedSeconds - addedSeconds);
+
+      // 3. Resolve manager recipient
+      let managerUserId: string | null = null;
+      if (task.reports_to_member_id) {
+        const mgrRes = await db.query("SELECT user_id FROM team_members WHERE id = $1;", [task.reports_to_member_id]);
+        managerUserId = mgrRes.rows[0]?.user_id || null;
+      }
+
+      if (!managerUserId && effectiveTeamId) {
+        // Fall back to team admin / owner / manager
+        const adminRes = await db.query(
+          `SELECT tm.user_id
+           FROM team_members tm
+           JOIN roles r ON r.id = tm.role_id
+           WHERE tm.team_id = $1 AND tm.active = TRUE AND tm.user_id != $2
+             AND (r.admin_role = TRUE OR r.name IN ('Owner', 'Admin', 'Manager'))
+           LIMIT 1;`,
+          [effectiveTeamId, userId]
+        );
+        managerUserId = adminRes.rows[0]?.user_id || null;
+      }
+
+      if (!managerUserId) return;
+
+      // 4. Check estimated time threshold (total_minutes)
+      const estimatedSeconds = (parseFloat(task.total_minutes) || 0) * 60;
+      if (estimatedSeconds > 0) {
+        if (totalBeforeSeconds <= estimatedSeconds && totalRecordedSeconds > estimatedSeconds) {
+          const trackedFormatted = TaskTimeApprovalService.formatDurationDisplay(totalRecordedSeconds);
+          const estimateFormatted = TaskTimeApprovalService.formatDurationDisplay(estimatedSeconds);
+          await NotificationsService.createNotification({
+            userId: managerUserId,
+            teamId: effectiveTeamId,
+            taskId,
+            projectId: task.project_id,
+            message: `Task "${task.name}" has exceeded its estimated time (Tracked: ${trackedFormatted}, Estimated: ${estimateFormatted}).`,
+          });
+        }
+      }
+
+      // 5. Check maximum approved time threshold (maximum_approved_minutes)
+      const maximumSeconds = (parseFloat(task.maximum_approved_minutes) || 0) * 60;
+      if (maximumSeconds > 0) {
+        if (totalBeforeSeconds <= maximumSeconds && totalRecordedSeconds > maximumSeconds) {
+          const trackedFormatted = TaskTimeApprovalService.formatDurationDisplay(totalRecordedSeconds);
+          const maxFormatted = TaskTimeApprovalService.formatDurationDisplay(maximumSeconds);
+          await NotificationsService.createNotification({
+            userId: managerUserId,
+            teamId: effectiveTeamId,
+            taskId,
+            projectId: task.project_id,
+            message: `Task "${task.name}" has exceeded maximum approved time (Tracked: ${trackedFormatted}, Maximum: ${maxFormatted}).`,
+          });
+        }
+      }
+    } catch (err) {
+      log_error(err);
+    }
+  }
 
   /**
    * Helper: Validate adjustment reason requirement
@@ -366,7 +477,7 @@ export class TaskTimeApprovalService {
           teamId,
           taskId,
           projectId: task.project_id,
-          message: `${user.name || "A team member"} submitted ${Math.round(recordedDuration / 60)} minutes for approval on "${task.name}".`,
+          message: `${user.name || "A team member"} submitted ${TaskTimeApprovalService.formatDurationDisplay(recordedDuration)} for approval on "${task.name}".`,
         });
       }
     }
@@ -472,7 +583,7 @@ export class TaskTimeApprovalService {
         teamId,
         taskId: approval.task_id,
         projectId: approval.project_id,
-        message: `Your submitted time (${Math.round(approval.recorded_duration / 60)}m) for "${approval.task_name}" was approved.`,
+        message: `Your submitted time (${TaskTimeApprovalService.formatDurationDisplay(approval.recorded_duration)}) for "${approval.task_name}" was approved.`,
       });
     }
 
@@ -582,7 +693,7 @@ export class TaskTimeApprovalService {
         teamId,
         taskId: approval.task_id,
         projectId: approval.project_id,
-        message: `Your submitted time for "${approval.task_name}" was adjusted to ${Math.round(approvedSeconds / 60)}m. Reason: ${adjustmentReason}`,
+        message: `Your submitted time for "${approval.task_name}" was adjusted from ${TaskTimeApprovalService.formatDurationDisplay(recordedSeconds)} to ${TaskTimeApprovalService.formatDurationDisplay(approvedSeconds)}. Reason: ${adjustmentReason}`,
       });
     }
 
@@ -790,7 +901,7 @@ export class TaskTimeApprovalService {
           teamId,
           taskId: approval.task_id,
           projectId: approval.project_id,
-          message: `${user.name || "A team member"} resubmitted ${Math.round(recordedDuration / 60)} minutes for approval on "${approval.task_name}".`,
+          message: `${user.name || "A team member"} resubmitted ${TaskTimeApprovalService.formatDurationDisplay(recordedDuration)} for approval on "${approval.task_name}".`,
         });
       }
     }

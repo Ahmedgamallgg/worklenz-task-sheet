@@ -28,6 +28,8 @@ import { timeApprovalsApiService } from '@/api/time-approvals/time-approvals.api
 import { ITaskTimeApproval, TaskTimeApprovalStatus } from '@/types/time-approval.types';
 import { useAppSelector } from '@/hooks/useAppSelector';
 import { formatSecondsToHoursMinutes } from '@/utils/time-format.utils';
+import { useSocket } from '@/socket/socketContext';
+import { SocketEvents } from '@/shared/socket-events';
 
 interface TaskTimeApprovalStatusCardProps {
   taskId: string;
@@ -44,6 +46,7 @@ export const TaskTimeApprovalStatusCard: React.FC<TaskTimeApprovalStatusCardProp
   const [historyModalVisible, setHistoryModalVisible] = useState<boolean>(false);
 
   const currentUser = useAppSelector(state => state.userReducer);
+  const { socket } = useSocket();
 
   const fetchApprovals = async () => {
     if (!taskId) return;
@@ -67,6 +70,20 @@ export const TaskTimeApprovalStatusCard: React.FC<TaskTimeApprovalStatusCardProp
   useEffect(() => {
     fetchApprovals();
   }, [taskId]);
+
+  // Real-time updates via WebSockets
+  useEffect(() => {
+    const handleTimeLogUpdated = (data?: any) => {
+      if (!data || !data.task_id || data.task_id === taskId) {
+        fetchApprovals();
+      }
+    };
+
+    socket?.on(SocketEvents.TASK_TIME_LOG_UPDATED.toString(), handleTimeLogUpdated);
+    return () => {
+      socket?.off(SocketEvents.TASK_TIME_LOG_UPDATED.toString(), handleTimeLogUpdated);
+    };
+  }, [socket, taskId]);
 
   const latestApproval = approvals.length > 0 ? approvals[0] : null;
 

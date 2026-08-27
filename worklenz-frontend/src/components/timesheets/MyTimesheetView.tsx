@@ -38,6 +38,8 @@ import {
   fetchTask,
 } from '@/features/task-drawer/task-drawer.slice';
 import { setProjectId } from '@/features/project/project.slice';
+import { useSocket } from '@/socket/socketContext';
+import { SocketEvents } from '@/shared/socket-events';
 
 dayjs.extend(isoWeek);
 
@@ -47,6 +49,7 @@ interface MyTimesheetViewProps {
 
 export const MyTimesheetView: React.FC<MyTimesheetViewProps> = ({ onOpenTask }) => {
   const dispatch = useAppDispatch();
+  const { socket } = useSocket();
   const [viewMode, setViewMode] = useState<'daily' | 'weekly' | 'monthly'>('weekly');
   const [currentDate, setCurrentDate] = useState<Dayjs>(dayjs());
   const [loading, setLoading] = useState<boolean>(false);
@@ -134,6 +137,18 @@ export const MyTimesheetView: React.FC<MyTimesheetViewProps> = ({ onOpenTask }) 
   useEffect(() => {
     fetchTimesheet();
   }, [fetchTimesheet]);
+
+  // Real-time updates via WebSockets
+  useEffect(() => {
+    const handleTimeLogUpdated = () => {
+      fetchTimesheet();
+    };
+
+    socket?.on(SocketEvents.TASK_TIME_LOG_UPDATED.toString(), handleTimeLogUpdated);
+    return () => {
+      socket?.off(SocketEvents.TASK_TIME_LOG_UPDATED.toString(), handleTimeLogUpdated);
+    };
+  }, [socket, fetchTimesheet]);
 
   const handlePrevious = () => {
     if (viewMode === 'daily') setCurrentDate(prev => prev.subtract(1, 'day'));
