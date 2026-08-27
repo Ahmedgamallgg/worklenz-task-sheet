@@ -1,0 +1,23 @@
+{
+  "bugTracking": "تتبع الأخطاء",
+  "construction": "البناء",
+  "designCreative": "التصميم والإبداع",
+  "education": "التعليم",
+  "finance": "التمويل",
+  "hrRecruiting": "الموارد البشرية والتوظيف",
+  "informationTechnology": "تكنولوجيا المعلومات",
+  "legal": "قانوني",
+  "manufacturing": "التصنيع",
+  "marketing": "التسويق",
+  "nonprofit": "غير ربحية",
+  "personalUse": "الاستخدام الشخصي",
+  "salesCRM": "المبيعات وإدارة علاقات العملاء",
+  "serviceConsulting": "الخدمة والاستشارات",
+  "softwareDevelopment": "تطوير البرمجيات",
+  "description": "الوصف",
+  "phase": "المرحلة",
+  "statuses": "الحالات",
+  "priorities": "الأولويات",
+  "labels": "التسميات",
+  "tasks": "المهام"
+}

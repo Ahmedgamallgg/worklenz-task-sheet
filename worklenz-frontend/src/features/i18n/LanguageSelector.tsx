@@ -17,16 +17,18 @@ const LanguageSelector = () => {
     { key: 'pt', label: 'Português' },
     { key: 'alb', label: 'Shqip' },
     { key: 'de', label: 'Deutsch' },
-    { key: 'zh', label: '简体中文' },
+    { key: 'zh_cn', label: '简体中文' },
+    { key: 'ar', label: 'العربية' },
   ];
 
-  const languageLabels = {
+  const languageLabels: Record<ILanguageType, string> = {
     en: 'En',
     es: 'Es',
     pt: 'Pt',
     alb: 'Sq',
     de: 'de',
-    zh: 'zh',
+    zh_cn: 'zh',
+    ar: 'Ar',
   };
 
   return (

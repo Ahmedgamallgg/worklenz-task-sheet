@@ -1,0 +1,136 @@
+{
+  "title": "التكامل الركود",
+  "connectWorkspace": "قم بتوصيل مساحة عمل Slack",
+  "addChannelConfig": "أضف تكوين القناة",
+  "manageConfigurations": "إدارة",
+  "manageTitle": "إدارة تكوينات Slack",
+  "defaultWorkspaceName": "مساحة عمل سلاك",
+  "connectedDescription": "مساحة عمل Slack الخاصة بفريقك متصلة. قم بتكوين القنوات التي تتلقى الإشعارات لكل مشروع.",
+  "status": {
+    "connected": "متصل"
+  },
+  "stats": {
+    "total": "المجموع",
+    "active": "نشط",
+    "available": "متاح"
+  },
+  "setup": {
+    "title": "تعليمات الإعداد",
+    "step1": {
+      "title": "1. قم بتوصيل مساحة العمل الخاصة بك",
+      "description": "انقر فوق الزر \"Connect Slack Workspace\" أدناه للسماح لـ Worklenz بالوصول إلى مساحة عمل Slack الخاصة بك."
+    },
+    "step2": {
+      "title": "2. قم بدعوة الروبوت إلى القنوات",
+      "description": "في كل قناة Slack حيث تريد إشعارات، اكتب:",
+      "command": "/ دعوة @Worklenz",
+      "note": "ما عليك سوى القيام بذلك مرة واحدة لكل قناة."
+    },
+    "step3": {
+      "title": "3. تكوين الإخطارات",
+      "description": "بعد الاتصال، انقر فوق \"إدارة\" لتكوين المشاريع التي ترسل إشعارات إلى أي قنوات."
+    }
+  },
+  "instructions": {
+    "inviteBot": {
+      "title": "لا تنس دعوة الروبوت!",
+      "description": "قبل أن تتمكن من تلقي الإشعارات في قناة Slack، يجب عليك دعوة روبوت Worklenz إلى تلك القناة.",
+      "step": "في قناة Slack الخاصة بك، اكتب:<code>/invite @Worklenz</code>",
+      "note": "يجب القيام بذلك مرة واحدة فقط لكل قناة."
+    },
+    "getStarted": "ابدأ بإضافة تكوين قناة لتلقي الإشعارات من مشاريعك."
+  },
+  "disconnect": {
+    "title": "افصل سلاك؟",
+    "content": "سيؤدي هذا إلى إزالة جميع تكوينات Slack وإيقاف الإشعارات لفريقك.",
+    "okText": "قطع الاتصال"
+  },
+  "deleteConfig": {
+    "title": "هل تريد حذف التكوين؟",
+    "content": "هل أنت متأكد من رغبتك في إزالة تكوين القناة هذا؟",
+    "okText": "حذف"
+  },
+  "notConnected": {
+    "title": "قم بتوصيل مساحة عمل Slack الخاصة بك",
+    "description": "قم بدمج Slack مع فريق Worklenz الخاص بك لتلقي الإشعارات في الوقت الفعلي، وإنشاء المهام من Slack، والحفاظ على مزامنة فريقك عبر كلا النظامين الأساسيين."
+  },
+  "features": {
+    "notifications": {
+      "title": "الإخطارات في الوقت الحقيقي",
+      "description": "احصل على إشعارات بشأن تحديثات المهام والتعليقات والمواعيد النهائية"
+    },
+    "createTasks": {
+      "title": "إنشاء المهام من سلاك",
+      "description": "استخدم أوامر الشرطة المائلة لإنشاء المهام بسرعة دون مغادرة Slack"
+    },
+    "collaboration": {
+      "title": "تعاون الفريق",
+      "description": "حافظ على مزامنة فريقك بالكامل عبر Worklenz وSlack"
+    }
+  },
+  "table": {
+    "project": "المشروع",
+    "slackChannel": "قناة سلاك",
+    "notifications": "الإخطارات",
+    "active": "نشط",
+    "actions": "الإجراءات",
+    "channelConfigs": "تكوينات قناة الركود",
+    "toggleStatus": "تبديل حالة{{channel}}",
+    "editConfig": "تحرير التكوين لـ{{channel}}",
+    "deleteConfig": "احذف التكوين لـ{{channel}}"
+  },
+  "modal": {
+    "configureChannel": "قم بتكوين قناة Slack",
+    "editChannel": "تحرير قناة سلاك",
+    "project": "المشروع",
+    "selectProject": "حدد مشروعًا",
+    "slackChannel": "قناة سلاك",
+    "selectSlackChannel": "حدد قناة سلاك",
+    "notificationTypes": "أنواع الإخطارات",
+    "selectNotificationTypes": "حدد أنواع الإشعارات",
+    "refreshChannels": "التحديث",
+    "notificationOptions": {
+      "taskCreated": "تم إنشاء المهمة",
+      "taskUpdated": "تم تحديث المهمة",
+      "taskCompleted": "اكتملت المهمة",
+      "taskAssigned": "المهمة المعينة",
+      "commentAdded": "تمت إضافة التعليق",
+      "statusChanged": "تم تغيير الحالة",
+      "dueDateChanged": "تم تغيير تاريخ الاستحقاق",
+      "dueDateReminder": "تذكير بموعد الاستحقاق",
+      "assigneeChanged": "تم تغيير المكلف",
+      "priorityChanged": "تغيرت الأولوية"
+    },
+    "addConfiguration": "إضافة التكوين",
+    "updateConfiguration": "تحديث التكوين"
+  },
+  "validation": {
+    "selectProject": "الرجاء اختيار المشروع",
+    "selectChannel": "يرجى تحديد قناة Slack",
+    "selectNotifications": "يرجى تحديد نوع إشعار واحد على الأقل"
+  },
+  "messages": {
+    "connectedSuccess": "تم توصيل مساحة العمل Slack بنجاح!",
+    "installationCancelled": "تم إلغاء التثبيت الركود",
+    "disconnectedSuccess": "تم قطع اتصال مساحة العمل Slack بنجاح",
+    "configAdded": "تمت إضافة تكوين القناة بنجاح",
+    "configUpdated": "تم تحديث تكوين القناة بنجاح",
+    "statusUpdated": "تم تحديث حالة القناة بنجاح",
+    "configRemoved": "تمت إزالة تكوين القناة بنجاح",
+    "channelsRefreshed": "تم تحديث القنوات بنجاح"
+  },
+  "errors": {
+    "connectionCheckFailed": "فشل في التحقق من اتصال Slack",
+    "loadConfigsFailed": "فشل تحميل تكوينات القناة",
+    "loadChannelsFailed": "فشل تحميل القنوات المتاحة",
+    "loadProjectsFailed": "فشل تحميل المشاريع",
+    "initiateConnectionFailed": "فشل في بدء اتصال Slack",
+    "connectionFailed": "فشل في الاتصال بمساحة عمل Slack",
+    "disconnectFailed": "فشل في قطع اتصال مساحة عمل Slack",
+    "addConfigFailed": "فشل إضافة تكوين القناة",
+    "updateConfigFailed": "فشل تحديث تكوين القناة",
+    "updateStatusFailed": "فشل تحديث حالة القناة",
+    "removeConfigFailed": "فشل في إزالة تكوين القناة",
+    "refreshChannelsFailed": "فشل في تحديث القنوات"
+  }
+}

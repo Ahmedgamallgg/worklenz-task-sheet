@@ -1,0 +1,21 @@
+{
+  "labelColumn": "التسمية",
+  "deleteConfirmationTitle": "هل أنت متأكد؟",
+  "deleteConfirmationOk": "نعم",
+  "deleteConfirmationCancel": "إلغاء",
+  "associatedTaskColumn": "عدد المهام المرتبطة",
+  "searchPlaceholder": "البحث بالاسم",
+  "emptyText": "يمكن إنشاء التصنيفات أثناء تحديث المهام أو إنشائها.",
+  "pinTooltip": "انقر لتثبيت هذا في القائمة الرئيسية",
+  "colorChangeTooltip": "انقر لتغيير اللون",
+  "pageTitle": "إدارة التسميات",
+  "deleteConfirmTitle": "حذف التسمية",
+  "deleteButton": "حذف",
+  "cancelButton": "إلغاء",
+  "labelInUseMessage": "تم تعيين التسمية \"{{labelName}}\" حاليًا لمهمة{{count}}{{plural}}.",
+  "labelDeleteWarning": "⚠️ سيؤدي حذف هذا التصنيف إلى إزالته من جميع المهام{{count}}المعينة{{plural}}. لا يمكن التراجع عن هذا الإجراء.",
+  "deleteConfirmMessage": "هل أنت متأكد من أنك تريد حذف التصنيف \"{{labelName}}\"؟ لا يمكن التراجع عن هذا الإجراء.",
+  "editTooltip": "تحرير",
+  "deleteTooltip": "حذف",
+  "search": "البحث"
+}

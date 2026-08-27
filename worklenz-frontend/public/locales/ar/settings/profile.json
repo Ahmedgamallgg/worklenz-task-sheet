@@ -1,0 +1,19 @@
+{
+  "uploadError": "يمكنك فقط تحميل ملف JPG/PNG!",
+  "uploadSizeError": "يجب أن يكون حجم الصورة أصغر من 2 ميجابايت!",
+  "upload": "تحميل",
+  "nameLabel": "الاسم",
+  "nameRequiredError": "الاسم مطلوب",
+  "emailLabel": "البريد الإلكتروني",
+  "emailRequiredError": "البريد الإلكتروني مطلوب",
+  "saveChanges": "حفظ التغييرات",
+  "save": "احفظ",
+  "profileJoinedText": "انضم إلى{{date}}",
+  "profileLastUpdatedText": "آخر تحديث{{date}}",
+  "avatarTooltip": "انقر لتحميل الصورة الرمزية",
+  "removeAvatar": "إزالة الصورة",
+  "removeAvatarConfirmTitle": "إزالة الصورة الشخصية؟",
+  "removeAvatarConfirmDescription": "ستتم إزالة الصورة الرمزية الخاصة بك وسيتم عرض الأحرف الأولى من اسمك بدلاً من ذلك.",
+  "cancel": "إلغاء",
+  "title": "إعدادات الملف الشخصي"
+}

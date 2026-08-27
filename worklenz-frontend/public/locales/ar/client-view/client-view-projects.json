@@ -1,0 +1,12 @@
+{
+  "title": "{{items}}المشاريع",
+  "table": {
+    "header": {
+      "name": "الاسم",
+      "status": "الحالة",
+      "taskProgress": "تقدم المهمة",
+      "lastUpdates": "آخر التحديثات",
+      "members": "الأعضاء"
+    }
+  }
+}

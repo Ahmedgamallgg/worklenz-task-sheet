@@ -1,0 +1,12 @@
+{
+  "membersCount": "عدد الأعضاء",
+  "createdAt": "تم الإنشاء في",
+  "projectName": "اسم المشروع",
+  "teamName": "اسم الفريق",
+  "refreshProjects": "تحديث المشاريع",
+  "searchPlaceholder": "البحث باسم المشروع",
+  "deleteProject": "هل أنت متأكد من رغبتك في حذف هذا المشروع؟",
+  "confirm": "تأكيد",
+  "cancel": "إلغاء",
+  "delete": "حذف المشروع"
+}

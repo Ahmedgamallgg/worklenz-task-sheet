@@ -1,0 +1,16 @@
+{
+  "duplicateTask": "مهمة مكررة",
+  "duplicateTaskDescription": "حدد العناصر لنسخها إلى المهمة الجديدة:",
+  "duplicateOptions": {
+    "subtasks": "المهام الفرعية",
+    "attachments": "المرفقات",
+    "dates": "التمر",
+    "dependencies": "التبعيات",
+    "assignees": "المكلفون",
+    "labels": "التسميات",
+    "customFields": "قيم الحقول المخصصة",
+    "subscribers": "المشتركون"
+  },
+  "duplicate": "مكررة",
+  "cancel": "إلغاء"
+}

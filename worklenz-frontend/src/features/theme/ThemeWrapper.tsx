@@ -12,6 +12,7 @@ import 'dayjs/locale/pt';
 import 'dayjs/locale/sq';
 import 'dayjs/locale/de';
 import 'dayjs/locale/zh-cn';
+import 'dayjs/locale/ar';
 
 // Import Ant Design locales
 import enUS from 'antd/locale/en_US';
@@ -19,6 +20,7 @@ import esES from 'antd/locale/es_ES';
 import ptPT from 'antd/locale/pt_PT';
 import deDE from 'antd/locale/de_DE';
 import zhCN from 'antd/locale/zh_CN';
+import arEG from 'antd/locale/ar_EG';
 
 type ChildrenProp = {
   children: React.ReactNode;
@@ -39,6 +41,7 @@ const ThemeWrapper = memo(({ children }: ChildrenProp) => {
     alb: 'sq',
     de: 'de',
     zh_cn: 'zh-cn',
+    ar: 'ar',
   };
 
   // Language mapping for Ant Design
@@ -49,6 +52,7 @@ const ThemeWrapper = memo(({ children }: ChildrenProp) => {
     alb: enUS, // Albanian not available in Ant Design
     de: deDE,
     zh_cn: zhCN,
+    ar: arEG,
   };
 
   // Memoize theme configuration to prevent unnecessary re-renders
@@ -98,9 +102,19 @@ const ThemeWrapper = memo(({ children }: ChildrenProp) => {
     }
   }, []);
 
+  // Set document dir and lang attributes whenever language changes
+  useEffect(() => {
+    const isRtl = language === 'ar';
+    document.documentElement.setAttribute('lang', language || 'en');
+    document.documentElement.setAttribute('dir', isRtl ? 'rtl' : 'ltr');
+  }, [language]);
+
+  // Memoize direction
+  const direction = useMemo(() => (language === 'ar' ? 'rtl' : 'ltr'), [language]);
+
   return (
     <div ref={configRef} className={themeClassName}>
-      <ConfigProvider theme={themeConfig} locale={antLocale}>
+      <ConfigProvider theme={themeConfig} locale={antLocale} direction={direction}>
         {children}
       </ConfigProvider>
     </div>

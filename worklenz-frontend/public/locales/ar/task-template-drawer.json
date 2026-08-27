@@ -1,0 +1,16 @@
+{
+  "createTaskTemplate": "إنشاء قالب المهمة",
+  "editTaskTemplate": "تحرير قالب المهمة",
+  "cancelText": "إلغاء",
+  "saveText": "احفظ",
+  "templateNameText": "اسم القالب",
+  "templateNameRequired": "اسم القالب مطلوب",
+  "selectedTasks": "المهام المختارة",
+  "removeTask": "إزالة",
+  "cancelButton": "إلغاء",
+  "saveButton": "احفظ",
+  "includeSubtasks": "قم بتضمين التسلسل الهرمي للمهام الفرعية",
+  "subtasksLabel": "المهمة الفرعية",
+  "subtaskCount": "{{count}}المهام الفرعية",
+  "subtaskHierarchyInfo": "عند تحديده، يتم حفظ المهام الفرعية ضمن المهمة الرئيسية الخاصة بها. عند إلغاء التحديد، يتم حفظ المهام الفرعية كمهام رئيسية منفصلة."
+}

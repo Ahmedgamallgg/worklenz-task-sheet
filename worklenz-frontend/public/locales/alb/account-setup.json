@@ -1,6 +1,5 @@
 {
   "continue": "Vazhdo",
-
   "setupYourAccount": "Konfiguro llogarinë tënde.",
   "organizationStepTitle": "Emërto organizatën tënde",
   "organizationStepLabel": "Zgjidh një emër për llogarinë tënde në Worklenz.",
@@ -86,9 +85,7 @@
   "aboutYouStepName": "Rreth teje",
   "yourNeedsStepName": "Nevojat e tua",
   "discoveryStepName": "Zbulimi",
-
   "stepProgress": "Hapi {{step}} nga 3: {{title}}",
-
   "projectStepHeader": "Le të krijojmë projektin tënd të parë",
   "projectStepSubheader": "Fillo nga e para ose përdor një shabllon për të filluar më shpejt",
   "startFromScratch": "Fillo nga e para",
@@ -145,14 +142,12 @@
   "howHeardAboutFriendColleague": "Një mik ose koleg",
   "howHeardAboutBlogArticle": "Një blog ose artikull",
   "howHeardAboutOther": "Tjetër",
-
   "aboutYouStepTitle": "Na trego për veten",
   "aboutYouStepDescription": "Na ndihmo të personalizojmë përvojën tënde",
   "yourNeedsStepTitle": "Cilat janë nevojat e tua kryesore?",
   "yourNeedsStepDescription": "Zgjidh të gjitha që aplikohen për të na ndihmuar të konfigurojmë hapësirën tënde të punës",
   "selected": "zgjedhur",
   "previousToolsLabel": "Çfarë mjetesh ke përdorur më parë? (Opsionale)",
-
   "roleSuggestions": {
     "designer": "UI/UX, Grafikë, Kreativ",
     "developer": "Frontend, Backend, Full-stack",
@@ -161,30 +156,63 @@
     "sales": "Zhvillim Biznesi, Marrëdhënie me Klientë",
     "operations": "Administratë, HR, Financa"
   },
-
   "languages": {
     "en": "Anglisht",
     "es": "Spanjisht",
     "pt": "Portugalisht",
     "de": "Gjermanisht",
     "alb": "Shqip",
-    "zh": "Kinezçe"
+    "zh": "Kinezçe",
+    "ar": "العربية"
   },
-
   "orgSuggestions": {
-    "tech": ["TechCorp", "DevStudio", "CodeCraft", "PixelForge"],
-    "creative": ["Creative Hub", "Design Studio", "Brand Works", "Visual Arts"],
-    "consulting": ["Strategy Group", "Business Solutions", "Expert Advisors", "Growth Partners"],
-    "startup": ["Innovation Labs", "Future Works", "Venture Co", "Next Gen"]
+    "tech": [
+      "TechCorp",
+      "DevStudio",
+      "CodeCraft",
+      "PixelForge"
+    ],
+    "creative": [
+      "Creative Hub",
+      "Design Studio",
+      "Brand Works",
+      "Visual Arts"
+    ],
+    "consulting": [
+      "Strategy Group",
+      "Business Solutions",
+      "Expert Advisors",
+      "Growth Partners"
+    ],
+    "startup": [
+      "Innovation Labs",
+      "Future Works",
+      "Venture Co",
+      "Next Gen"
+    ]
   },
-
   "projectSuggestions": {
-    "freelancer": ["Projekti i Klientit", "Përditësim Portfolio", "Markë Personale"],
-    "startup": ["Zhvillim MVP", "Lansim Produkti", "Kërkim Tregu"],
-    "agency": ["Fushatë Klienti", "Strategji Markë", "Ridizajnim Website"],
-    "enterprise": ["Migrim Sistemi", "Optimizim Procesesh", "Trajnim Ekipi"]
+    "freelancer": [
+      "Projekti i Klientit",
+      "Përditësim Portfolio",
+      "Markë Personale"
+    ],
+    "startup": [
+      "Zhvillim MVP",
+      "Lansim Produkti",
+      "Kërkim Tregu"
+    ],
+    "agency": [
+      "Fushatë Klienti",
+      "Strategji Markë",
+      "Ridizajnim Website"
+    ],
+    "enterprise": [
+      "Migrim Sistemi",
+      "Optimizim Procesesh",
+      "Trajnim Ekipi"
+    ]
   },
-
   "useCaseDescriptions": {
     "taskManagement": "Organizoj dhe ndjek detyrat",
     "teamCollaboration": "Punojmë së bashku pa probleme",

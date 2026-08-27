@@ -1,0 +1,51 @@
+{
+  "title": "التكامل",
+  "tooltip": "إدارة تكامل المشروع",
+  "upgradeRequired": "عمليات التكامل المتوفرة في خطة الأعمال",
+  "manageAll": "إدارة كافة عمليات التكامل",
+  "comingSoon": "قريبا",
+  "cancel": "إلغاء",
+  "slack": {
+    "title": "الركود",
+    "description": "إرسال إشعارات إلى قنوات Slack",
+    "notConnected": "يرجى توصيل مساحة عمل Slack الخاصة بك في الإعدادات أولاً",
+    "quickAddTitle": "أضف سلاك إلى المشروع",
+    "currentProject": "المشروع",
+    "selectChannel": "قناة سلاك",
+    "selectChannelPlaceholder": "حدد قناة Slack...",
+    "selectNotifications": "أنواع الإخطارات",
+    "selectNotificationsPlaceholder": "حدد أنواع الإشعارات...",
+    "refresh": "التحديث",
+    "addButton": "إضافة التكامل",
+    "inviteBotTip": "نصيحة: تأكد من دعوة @Worklenz bot إلى قناة Slack الخاصة بك أولاً!"
+  },
+  "teams": {
+    "title": "فرق مايكروسوفت",
+    "description": "إرسال إعلامات إلى قنوات الفرق"
+  },
+  "github": {
+    "title": "جيثب",
+    "description": "مزامنة المهام مع مشكلات GitHub"
+  },
+  "notificationTypes": {
+    "taskCreated": "تم إنشاء المهمة",
+    "taskAssigned": "المهمة المعينة",
+    "statusChanged": "تم تغيير الحالة",
+    "taskCompleted": "اكتملت المهمة",
+    "commentAdded": "تمت إضافة التعليق",
+    "dueDateChanged": "تم تغيير تاريخ الاستحقاق"
+  },
+  "validation": {
+    "selectChannel": "يرجى تحديد قناة Slack",
+    "selectNotifications": "يرجى تحديد نوع إشعار واحد على الأقل"
+  },
+  "messages": {
+    "integrationAdded": "تمت إضافة التكامل Slack بنجاح!",
+    "channelsRefreshed": "تم تحديث القنوات بنجاح"
+  },
+  "errors": {
+    "loadChannelsFailed": "فشل تحميل القنوات",
+    "refreshChannelsFailed": "فشل في تحديث القنوات",
+    "addIntegrationFailed": "فشل في إضافة التكامل"
+  }
+}

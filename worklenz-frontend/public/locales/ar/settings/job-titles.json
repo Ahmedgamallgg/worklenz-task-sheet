@@ -1,0 +1,20 @@
+{
+  "nameColumn": "الاسم",
+  "deleteConfirmationTitle": "هل أنت متأكد؟",
+  "deleteConfirmationOk": "نعم",
+  "deleteConfirmationCancel": "إلغاء",
+  "searchPlaceholder": "البحث بالاسم",
+  "createJobTitleButton": "إنشاء المسمى الوظيفي",
+  "pinTooltip": "انقر لتثبيت هذا في القائمة الرئيسية",
+  "createJobTitleDrawerTitle": "إنشاء المسمى الوظيفي",
+  "updateJobTitleDrawerTitle": "تحديث المسمى الوظيفي",
+  "nameLabel": "الاسم",
+  "namePlaceholder": "الاسم",
+  "nameRequiredError": "الرجاء إدخال الاسم",
+  "createButton": "إنشاء",
+  "updateButton": "التحديث",
+  "createJobTitleSuccessMessage": "خلق النجاح المسمى الوظيفي!",
+  "createJobTitleErrorMessage": "فشل إنشاء المسمى الوظيفي!",
+  "updateJobTitleSuccessMessage": "تحديث المسمى الوظيفي بنجاح!",
+  "updateJobTitleErrorMessage": "فشل تحديث المسمى الوظيفي!"
+}

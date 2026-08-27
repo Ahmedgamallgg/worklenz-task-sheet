@@ -1,0 +1,89 @@
+{
+  "todoList": {
+    "title": "قائمة المهام",
+    "refreshTasks": "تحديث المهام",
+    "addTask": "+ إضافة مهمة",
+    "noTasks": "لا توجد مهام",
+    "pressEnter": "اضغط",
+    "toCreate": "أن يخلق.",
+    "markAsDone": "ضع علامة \"تم\"."
+  },
+  "projects": {
+    "title": "المشاريع",
+    "refreshProjects": "تحديث المشاريع",
+    "noRecentProjects": "لم يتم تكليفك حاليًا بأي مشروع.",
+    "noFavouriteProjects": "لم يتم وضع علامة على أي مشاريع كمفضلة.",
+    "recent": "الأخيرة",
+    "favourites": "المفضلة"
+  },
+  "tasks": {
+    "assignedToMe": "المخصصة لي",
+    "assignedByMe": "تم تعيينه بواسطتي",
+    "all": "الكل",
+    "today": "اليوم",
+    "upcoming": "القادمة",
+    "overdue": "تأخرت",
+    "noDueDate": "لا يوجد تاريخ استحقاق",
+    "noTasks": "لا توجد مهام لإظهارها.",
+    "addTask": "+ إضافة مهمة",
+    "name": "الاسم",
+    "project": "المشروع",
+    "status": "الحالة",
+    "dueDate": "تاريخ الاستحقاق",
+    "dueDatePlaceholder": "تحديد تاريخ الاستحقاق",
+    "tomorrow": "غدا",
+    "nextWeek": "الأسبوع القادم",
+    "nextMonth": "الشهر المقبل",
+    "projectRequired": "الرجاء اختيار المشروع",
+    "pressTabToSelectDueDateAndProject": "اضغط على Tab لتحديد تاريخ التسليم والمشروع",
+    "dueOn": "المهام المستحقة",
+    "taskRequired": "الرجاء إضافة مهمة",
+    "list": "القائمة",
+    "calendar": "التقويم",
+    "tasks": "المهام",
+    "refresh": "التحديث",
+    "recentActivity": "النشاط الأخير",
+    "recentTasks": "المهام الأخيرة",
+    "recentTasksSegment": "المهام الأخيرة",
+    "timeLogged": "الوقت المسجل",
+    "timeLoggedSegment": "الوقت المسجل",
+    "noRecentTasks": "لا توجد مهام حديثة",
+    "noTimeLoggedTasks": "لا توجد مهام مسجلة للوقت",
+    "activityTag": "النشاط",
+    "timeLogTag": "سجل الوقت",
+    "timerTag": "الموقت",
+    "activitySingular": "النشاط",
+    "activityPlural": "الأنشطة",
+    "recentTaskAriaLabel": "المهمة الأخيرة:",
+    "timeLoggedTaskAriaLabel": "مهمة تسجيل الوقت:",
+    "errorLoadingRecentTasks": "خطأ في تحميل المهام الأخيرة",
+    "errorLoadingTimeLoggedTasks": "حدث خطأ أثناء تحميل المهام المسجلة"
+  },
+  "activityLogs": {
+    "title": "النشاط الأخير",
+    "refresh": "تحديث سجلات النشاط",
+    "noActivities": "لا توجد أنشطة حديثة",
+    "deletedProject": "(محذوفة)",
+    "project": {
+      "created": "{{userName}}تم إنشاء المشروع{{projectName}}",
+      "updated": "{{userName}}المشروع المحدث{{projectName}}",
+      "deleted": "{{userName}}المشروع المحذوف{{projectName}}",
+      "archived": "{{userName}}المشروع المؤرشف{{projectName}}",
+      "unarchived": "{{userName}}مشروع غير مؤرشف{{projectName}}",
+      "favorited": "{{userName}}المشروع المفضل{{projectName}}",
+      "unfavorited": "{{userName}}مشروع غير مفضل{{projectName}}",
+      "statusChanged": "{{userName}}تم تغيير حالة المشروع{{projectName}}",
+      "managerAssigned": "{{userName}}تم تعيين مدير المشروع لـ{{projectName}}",
+      "managerRemoved": "{{userName}}قام بإزالة مدير المشروع من{{projectName}}",
+      "memberAdded": "{{userName}}أضاف{{memberName}}إلى المشروع{{projectName}}",
+      "memberRemoved": "{{userName}}تمت إزالة{{memberName}}من المشروع{{projectName}}"
+    },
+    "task": {
+      "created": "{{userName}}تم إنشاء المهمة{{taskName}}",
+      "updated": "{{userName}}المهمة المحدثة{{taskName}}"
+    },
+    "generic": {
+      "activity": "أجرى{{userName}}نشاطًا"
+    }
+  }
+}

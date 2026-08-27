@@ -214,8 +214,8 @@ const AccountSetup: React.FC = () => {
         team_members: skip
           ? []
           : teamMembers
-              .map(teamMember => sanitizeInput(teamMember.value.trim()))
-              .filter(email => validateEmail(email)),
+            .map(teamMember => sanitizeInput(teamMember.value.trim()))
+            .filter(email => validateEmail(email)),
         survey_data: {
           organization_type: surveyData.organization_type,
           user_role: surveyData.user_role,
@@ -515,6 +515,7 @@ const AccountSetup: React.FC = () => {
     { key: Language.DE, label: 'Deutsch', flag: '🇩🇪' },
     { key: Language.ALB, label: 'Shqip', flag: '🇦🇱' },
     { key: Language.ZH, label: '简体中文', flag: '🇨🇳' },
+    { key: Language.AR, label: 'العربية', flag: '🇪🇬' },
   ];
 
   const handleLanguageChange = (languageKey: ILanguageType) => {
@@ -611,9 +612,8 @@ const AccountSetup: React.FC = () => {
           {/* Action Buttons */}
           <div className="w-full max-w-2xl mt-8">
             <div
-              className={`flex ${
-                currentStep !== 0 ? 'justify-between' : 'justify-end'
-              } items-center`}
+              className={`flex ${currentStep !== 0 ? 'justify-between' : 'justify-end'
+                } items-center`}
             >
               {currentStep !== 0 && (
                 <div className="flex flex-col space-y-2">

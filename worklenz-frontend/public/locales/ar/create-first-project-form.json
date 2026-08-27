@@ -1,0 +1,14 @@
+{
+  "formTitle": "قم بإنشاء مشروعك الأول",
+  "inputLabel": "ما المشروع الذي تعمل عليه الآن؟",
+  "or": "أو",
+  "templateButton": "الاستيراد من القالب",
+  "createFromTemplate": "إنشاء من القالب",
+  "importTasks": "استيراد المهام",
+  "goBack": "العودة",
+  "continue": "تابع",
+  "cancel": "إلغاء",
+  "create": "إنشاء",
+  "templateDrawerTitle": "اختر من القوالب",
+  "createProject": "إنشاء المشروع"
+}

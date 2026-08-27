@@ -1,0 +1,13 @@
+{
+  "importTaskTemplate": "استيراد قالب المهمة",
+  "templateName": "اسم القالب",
+  "templateDescription": "وصف القالب",
+  "selectedTasks": "المهام المختارة",
+  "tasks": "المهام",
+  "templates": "القوالب",
+  "remove": "إزالة",
+  "cancel": "إلغاء",
+  "import": "الاستيراد",
+  "subtasksLabel": "المهمة الفرعية",
+  "subtaskCountTooltip": "سيتم استيراد{{count}}المهمة (المهام) الفرعية"
+}

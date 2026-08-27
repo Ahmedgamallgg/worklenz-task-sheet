@@ -1,0 +1,19 @@
+{
+  "title": "تحرير قالب المهمة",
+  "cancelText": "إلغاء",
+  "saveText": "احفظ",
+  "templateNameText": "اسم القالب",
+  "selectedTasks": "المهام المختارة",
+  "removeTask": "إزالة",
+  "description": "الوصف",
+  "phase": "المرحلة",
+  "statuses": "الحالات",
+  "priorities": "الأولويات",
+  "labels": "التسميات",
+  "tasks": "المهام",
+  "noTemplateSelected": "لم يتم تحديد القالب",
+  "noDescription": "لا يوجد وصف",
+  "worklenzTemplates": "قوالب المركز الإبداعي Seven C",
+  "yourTemplatesLibrary": "مكتبتك",
+  "searchTemplates": "قوالب البحث"
+}

@@ -1,0 +1,33 @@
+{
+  "title": "تحديثات المشروع",
+  "inputPlaceholder": "اكتب التحديث الخاص بك هنا... استخدم @ للإشارة إلى أعضاء الفريق",
+  "addButton": "نشر التحديث",
+  "cancelButton": "إلغاء",
+  "deleteButton": "حذف",
+  "deleteConfirmTitle": "هل تريد حذف هذا التحديث؟",
+  "deleteConfirmContent": "هل أنت متأكد من رغبتك في حذف هذا التحديث؟ لا يمكن التراجع عن هذا الإجراء.",
+  "yes": "نعم",
+  "no": "لا",
+  "emptyState": "لا توجد تحديثات حتى الآن. ابدأ المحادثة!",
+  "historyLockedBoundary": "يقتصر سجل الدردشة على آخر 90 يومًا في هذه الخطة",
+  "historyLockedTitle": "سجل الدردشة مغلق",
+  "historyLockedBody": "يتوفر سجل الدردشة لأكثر من 90 يومًا في خطة الأعمال.",
+  "viewFullHistory": "عرض سجل الدردشة",
+  "upgradeNow": "الترقية الآن",
+  "reactions": {
+    "like": "مثل",
+    "love": "الحب",
+    "laugh": "اضحك",
+    "surprised": "متفاجئ",
+    "sad": "حزين",
+    "celebrate": "احتفل",
+    "rocket": "صاروخ",
+    "eyes": "العيون",
+    "fire": "النار",
+    "hundred": "100"
+  },
+  "actions": {
+    "edit": "تحرير",
+    "save": "احفظ"
+  }
+}

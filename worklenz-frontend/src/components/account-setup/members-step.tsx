@@ -1,16 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Form,
   Input,
+  InputRef,
   Button,
   Typography,
-  Card,
   Avatar,
-  Tag,
   Alert,
-  Space,
-  Dropdown,
-  MenuProps,
 } from '@/shared/antd-imports';
 import {
   CloseCircleOutlined,
@@ -19,7 +14,6 @@ import {
   UserOutlined,
   CheckCircleOutlined,
   ExclamationCircleOutlined,
-  GlobalOutlined,
 } from '@/shared/antd-imports';
 import { useTranslation } from 'react-i18next';
 import { setTeamMembers } from '@/features/account-setup/account-setup.slice';
@@ -27,7 +21,6 @@ import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '@/app/store';
 import { validateEmail } from '@/utils/validateEmail';
 import { sanitizeInput } from '@/utils/sanitizeInput';
-import { setLanguage } from '@/features/i18n/localesSlice';
 
 const { Title, Paragraph, Text } = Typography;
 
@@ -63,12 +56,11 @@ const getRoleSuggestions = (t: any) => [
 ];
 
 const MembersStep: React.FC<MembersStepProps> = ({ isDarkMode, styles, token }) => {
-  const { t, i18n } = useTranslation('account-setup');
+  const { t } = useTranslation('account-setup');
   const { teamMembers, organizationName } = useSelector(
     (state: RootState) => state.accountSetupReducer
   );
-  const { language } = useSelector((state: RootState) => state.localesReducer);
-  const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const inputRefs = useRef<(InputRef | null)[]>([]);
   const dispatch = useDispatch();
   const [focusedIndex, setFocusedIndex] = useState<number | null>(null);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -78,52 +70,53 @@ const MembersStep: React.FC<MembersStepProps> = ({ isDarkMode, styles, token }) 
 
   const addEmail = () => {
     if (teamMembers.length >= 5) return;
-    const newId = teamMembers.length > 0 ? Math.max(...teamMembers.map(t => t.id)) + 1 : 0;
+    const newId = Date.now();
     dispatch(setTeamMembers([...teamMembers, { id: newId, value: '' }]));
-    setTimeout(() => inputRefs.current[teamMembers.length]?.focus(), 100);
+    setTimeout(() => {
+      inputRefs.current[teamMembers.length]?.focus();
+    }, 50);
   };
 
   const removeEmail = (id: number) => {
-    if (teamMembers.length > 1)
-      dispatch(setTeamMembers(teamMembers.filter(teamMember => teamMember.id !== id)));
+    if (teamMembers.length <= 1) return;
+    dispatch(setTeamMembers(teamMembers.filter(member => member.id !== id)));
+    setValidatedEmails(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(id);
+      return newSet;
+    });
   };
 
   const updateEmail = (id: number, value: string) => {
-    const sanitizedValue = sanitizeInput(value);
+    const sanitized = sanitizeInput(value);
     dispatch(
       setTeamMembers(
-        teamMembers.map(teamMember =>
-          teamMember.id === id ? { ...teamMember, value: sanitizedValue } : teamMember
-        )
+        teamMembers.map(member => (member.id === id ? { ...member, value: sanitized } : member))
       )
     );
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (e.key === 'Enter') {
-      const input = e.currentTarget as HTMLInputElement;
-      if (input.value.trim() && validateEmail(input.value.trim())) {
-        e.preventDefault();
-        if (index === teamMembers.length - 1 && teamMembers.length < 5) addEmail();
-        else if (index < teamMembers.length - 1) inputRefs.current[index + 1]?.focus();
-      }
-    }
-  };
-
-  const handleSuggestionClick = (suggestion: string) => {
-    const emptyEmailIndex = teamMembers.findIndex(member => !member.value.trim());
-    if (emptyEmailIndex !== -1) {
-      updateEmail(teamMembers[emptyEmailIndex].id, suggestion);
+  const addPresetEmail = (email: string) => {
+    const emptyIndex = teamMembers.findIndex(member => !member.value.trim());
+    if (emptyIndex !== -1) {
+      updateEmail(teamMembers[emptyIndex].id, email);
     } else if (teamMembers.length < 5) {
-      const newId = teamMembers.length > 0 ? Math.max(...teamMembers.map(t => t.id)) + 1 : 0;
-      dispatch(setTeamMembers([...teamMembers, { id: newId, value: suggestion }]));
+      const newId = Date.now();
+      dispatch(setTeamMembers([...teamMembers, { id: newId, value: email }]));
     }
     setShowSuggestions(false);
   };
 
-  useEffect(() => {
-    setTimeout(() => inputRefs.current[0]?.focus(), 200);
-  }, []);
+  const handleKeyPress = (e: React.KeyboardEvent, index: number) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (index === teamMembers.length - 1 && teamMembers.length < 5) {
+        addEmail();
+      } else if (index < teamMembers.length - 1) {
+        inputRefs.current[index + 1]?.focus();
+      }
+    }
+  };
 
   const getEmailStatus = (email: string, memberId: number) => {
     if (!email.trim()) return 'empty';
@@ -136,31 +129,9 @@ const MembersStep: React.FC<MembersStepProps> = ({ isDarkMode, styles, token }) 
     if (email.trim()) setValidatedEmails(prev => new Set(prev).add(memberId));
   };
 
-  const languages = [
-    { key: 'en', label: t('languages.en'), flag: '🇺🇸' },
-    { key: 'es', label: t('languages.es'), flag: '🇪🇸' },
-    { key: 'pt', label: t('languages.pt'), flag: '🇵🇹' },
-    { key: 'de', label: t('languages.de'), flag: '🇩🇪' },
-    { key: 'alb', label: t('languages.alb'), flag: '🇦🇱' },
-    { key: 'zh', label: t('languages.zh'), flag: '🇨🇳' },
-  ];
-
-  const handleLanguageChange = (languageKey: string) => {
-    dispatch(setLanguage(languageKey));
-    i18n.changeLanguage(languageKey);
-  };
-
-  const currentLanguage = languages.find(lang => lang.key === language) || languages[0];
-  const languageMenuItems: MenuProps['items'] = languages.map(lang => ({
-    key: lang.key,
-    label: (
-      <div className="flex items-center space-x-2">
-        <span>{lang.flag}</span>
-        <span>{lang.label}</span>
-      </div>
-    ),
-    onClick: () => handleLanguageChange(lang.key),
-  }));
+  useEffect(() => {
+    setTimeout(() => inputRefs.current[0]?.focus(), 200);
+  }, []);
 
   return (
     <div className="w-full members-step">
@@ -225,7 +196,9 @@ const MembersStep: React.FC<MembersStepProps> = ({ isDarkMode, styles, token }) 
                     onKeyPress={e => handleKeyPress(e, index)}
                     onFocus={() => setFocusedIndex(index)}
                     onBlur={() => handleBlur(teamMember.id, teamMember.value)}
-                    ref={el => (inputRefs.current[index] = el)}
+                    ref={el => {
+                      inputRefs.current[index] = el;
+                    }}
                     className="border-0 shadow-none"
                     style={{
                       backgroundColor: 'transparent',

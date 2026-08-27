@@ -1,0 +1,9 @@
+{
+  "nameColumn": "الاسم",
+  "createdColumn": "تم إنشاؤه",
+  "editToolTip": "تحرير",
+  "deleteToolTip": "حذف",
+  "confirmText": "هل أنت متأكد؟",
+  "okText": "نعم",
+  "cancelText": "إلغاء"
+}

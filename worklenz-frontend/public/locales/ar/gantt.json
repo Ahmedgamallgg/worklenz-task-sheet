@@ -1,0 +1,30 @@
+{
+  "task": {
+    "open": "مفتوح",
+    "clickViewPhaseDetails": "انقر لعرض تفاصيل المرحلة",
+    "clickNavigateTimeline": "انقر للانتقال إلى المهمة في المخطط الزمني",
+    "clickTimelineSetDates": "انقر على المخطط الزمني لتعيين مواعيد لهذه المهمة",
+    "clickTimelineAddDates": "انقر على الجدول الزمني لإضافة التواريخ",
+    "resizeStartDate": "تغيير حجم تاريخ البدء",
+    "resizeEndDate": "تغيير حجم تاريخ الانتهاء",
+    "dragToMove": "اسحب لتحريك المهمة",
+    "addTaskFor": "أضف مهمة لـ{{date}}",
+    "enterTaskName": "أدخل اسم المهمة...",
+    "pressEnterToCreate": "اضغط على Enter لإنشاء • Esc للإلغاء",
+    "phaseTitle": "المرحلة:{{name}}-{{startDate}}إلى{{endDate}}",
+    "taskTitle": "{{name}}-{{startDate}}إلى{{endDate}}",
+    "datesUpdatedSuccessfully": "تم تحديث مواعيد المهام بنجاح",
+    "failedToUpdateDates": "فشل تحديث تواريخ المهام"
+  },
+  "common": {
+    "noStart": "لا بداية",
+    "noEnd": "لا نهاية"
+  },
+  "businessPlan": {
+    "phaseCreationRestricted": "إنشاء المرحلة متاح لمستخدمي خطة الأعمال فقط",
+    "taskCreationRestricted": "إنشاء المهام متاح لمستخدمي خطة الأعمال فقط",
+    "phaseEditingRestricted": "تحرير المرحلة متاح لمستخدمي خطة الأعمال فقط",
+    "taskEditingRestricted": "تحرير المهام متاح لمستخدمي خطة الأعمال فقط",
+    "phaseReorderingRestricted": "إعادة ترتيب المراحل متاحة لمستخدمي خطة الأعمال فقط"
+  }
+}

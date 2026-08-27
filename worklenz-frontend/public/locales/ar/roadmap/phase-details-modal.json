@@ -1,0 +1,42 @@
+{
+  "title": "تفاصيل المرحلة",
+  "overview": {
+    "title": "نظرة عامة",
+    "totalTasks": "إجمالي المهام",
+    "completion": "الانتهاء",
+    "progress": "التقدم"
+  },
+  "timeline": {
+    "title": "الجدول الزمني",
+    "startDate": "تاريخ البدء",
+    "endDate": "تاريخ الانتهاء",
+    "status": "الحالة",
+    "notSet": "غير محدد",
+    "statusLabels": {
+      "upcoming": "القادمة",
+      "active": "قيد التقدم",
+      "overdue": "تأخرت",
+      "notScheduled": "غير مجدولة"
+    }
+  },
+  "taskBreakdown": {
+    "title": "تقسيم المهام",
+    "completed": "اكتمل",
+    "pending": "معلق",
+    "overdue": "تأخرت"
+  },
+  "phaseColor": {
+    "title": "لون المرحلة",
+    "description": "لون معرف المرحلة"
+  },
+  "tasksInPhase": {
+    "title": "المهام في هذه المرحلة",
+    "noTasks": "لا توجد مهام في هذه المرحلة",
+    "priority": "الأولوية",
+    "assignees": "المكلفون",
+    "dueDate": "تاريخ الاستحقاق",
+    "startDate": "تاريخ البدء",
+    "noAssignees": "غير معين",
+    "noDueDate": "لا يوجد تاريخ استحقاق"
+  }
+}

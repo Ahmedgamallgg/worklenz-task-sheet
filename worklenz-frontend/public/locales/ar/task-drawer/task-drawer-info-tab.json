@@ -1,0 +1,32 @@
+{
+  "details": {
+    "task-key": "مفتاح المهمة",
+    "phase": "المرحلة",
+    "assignees": "المكلفون",
+    "due-date": "تاريخ الاستحقاق",
+    "time-estimation": "تقدير الوقت",
+    "priority": "الأولوية",
+    "labels": "التسميات",
+    "billable": "قابلة للفوترة",
+    "notify": "إخطار",
+    "when-done-notify": "عند الانتهاء، قم بإخطار",
+    "start-date": "تاريخ البدء",
+    "end-date": "تاريخ الانتهاء",
+    "hide-start-date": "إخفاء تاريخ البدء",
+    "show-start-date": "إظهار تاريخ البدء",
+    "hours": "ساعات",
+    "minutes": "دقائق",
+    "recurring": "المتكررة"
+  },
+  "description": {
+    "title": "الوصف",
+    "placeholder": "أضف وصفًا أكثر تفصيلاً...",
+    "clickToAdd": "انقر لإضافة وصف...",
+    "loadingEditor": "جارٍ تحميل المحرر..."
+  },
+  "subTasks": {
+    "title": "المهام الفرعية",
+    "add-sub-task": "أضف مهمة فرعية",
+    "refresh-sub-tasks": "تحديث المهام الفرعية"
+  }
+}

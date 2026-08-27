@@ -1,0 +1,13 @@
+{
+  "nameColumn": "الاسم",
+  "editToolTip": "تحرير",
+  "deleteToolTip": "حذف",
+  "confirmText": "هل أنت متأكد؟",
+  "okText": "حسنًا",
+  "cancelText": "إلغاء",
+  "renameTemplate": "إعادة تسمية قالب المشروع",
+  "templateName": "اسم القالب",
+  "nameRequired": "الرجاء إدخال اسم القالب.",
+  "renameSuccess": "تمت إعادة تسمية القالب بنجاح!",
+  "renameError": "فشل في إعادة تسمية القالب."
+}

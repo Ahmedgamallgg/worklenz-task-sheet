@@ -1,0 +1,15 @@
+{
+  "modalTitle": "ساعدنا على تحسين تجربتك",
+  "skip": "تخطي الآن",
+  "previous": "السابق",
+  "next": "التالي",
+  "completeSurvey": "استكمال المسح",
+  "submitting": "إرسال ردودكم...",
+  "submitSuccessTitle": "شكرا لك!",
+  "submitSuccessSubtitle": "تساعدنا ملاحظاتك على تحسين المركز الإبداعي لـ Seven C للجميع.",
+  "submitSuccessMessage": "شكرًا لك على إكمال الاستبيان!",
+  "submitErrorMessage": "فشل في تقديم الاستبيان. يرجى المحاولة مرة أخرى.",
+  "submitErrorLog": "فشل في تقديم الاستبيان",
+  "fetchErrorLog": "فشل جلب الاستطلاع",
+  "dontShowAgain": "لا تظهر هذا الاستطلاع مرة أخرى"
+}

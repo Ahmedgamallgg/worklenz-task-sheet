@@ -68,6 +68,10 @@ const LanguageAndRegionSettings = () => {
       value: Language.ZH,
       label: '简体中文',
     },
+    {
+      value: Language.AR,
+      label: 'العربية',
+    },
   ];
 
   const handleLanguageChange = async (values: { language?: ILanguageType; timezone?: string }) => {
