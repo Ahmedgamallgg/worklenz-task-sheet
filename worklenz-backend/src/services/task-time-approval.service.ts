@@ -11,7 +11,7 @@ import { NotificationsService } from "./notifications/notifications.service";
 import { IO } from "../shared/io";
 import { SocketEvents } from "../socket.io/events";
 import { IPassportSession } from "../interfaces/passport-session";
-import { log_error } from "../shared/utils";
+import { log_error, sanitizeCommentContent } from "../shared/utils";
 import Excel from "exceljs";
 import moment from "moment";
 
@@ -2429,6 +2429,14 @@ export class TaskTimeApprovalService {
     const minutes = Math.abs(totalMinutes) % 60;
     const sign = totalMinutes < 0 ? "-" : "";
     return `${sign}${hours}h ${minutes}m`;
+  }
+
+  /**
+   * Helper: Sanitize manager comments and adjustment/rejection reasons for XSS prevention
+   */
+  public static sanitizeComment(comment: string | null | undefined): string {
+    if (!comment) return "";
+    return sanitizeCommentContent(comment);
   }
 }
 

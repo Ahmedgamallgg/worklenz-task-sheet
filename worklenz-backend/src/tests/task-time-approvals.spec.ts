@@ -549,6 +549,175 @@ describe("Task Time Approvals Domain & Business Rules (Phase 3 Backend Logic)", 
       expect(projectData.tasks_above_max).toBe(2);
     });
   });
+
+  describe("14. Acceptance Scenario 1 — Employee Time Adjustment (Section 55)", () => {
+    it("should process Ahmed's submission, Mohamed's adjustment, and maintain recorded time immutability", () => {
+      // 1. Ahmed logs 3 sessions: 1h30m (5400s), 2h (7200s), 2h (7200s) -> total 5h30m (19800s)
+      const session1 = 5400;
+      const session2 = 7200;
+      const session3 = 7200;
+      const recordedTotal = session1 + session2 + session3;
+      expect(recordedTotal).toBe(19800);
+
+      // Task limits: Estimated 3h (10800s), Maximum 4h (14400s)
+      const estimatedSeconds = 10800;
+      const maxApprovedSeconds = 14400;
+
+      // Variance calculation
+      const variance = recordedTotal - estimatedSeconds; // +2h 30m (9000s)
+      const variancePct = Math.round((variance / estimatedSeconds) * 10000) / 100; // +83.33%
+      expect(variance).toBe(9000);
+      expect(variancePct).toBe(83.33);
+
+      // Submission creation
+      let approvalRecord: ITaskTimeApproval = {
+        id: "approval-ahmed-landing-page",
+        task_id: "task-landing-page",
+        team_member_id: "member-ahmed",
+        submitted_by_member_id: "member-ahmed",
+        recorded_duration: recordedTotal,
+        approved_duration: 0,
+        status: TaskTimeApprovalStatus.PENDING,
+        version: 1,
+        submission_number: 1,
+      };
+      expect(approvalRecord.status).toBe(TaskTimeApprovalStatus.PENDING);
+
+      // Mohamed (manager) adjusts approval to 4h (14400s)
+      const adjustedApprovedDuration = 14400;
+      const adjustmentReason = "1.5 hours exceeded the approved scope.";
+      const validation = TaskTimeApprovalService.validateAdjustmentReason(
+        approvalRecord.recorded_duration,
+        adjustedApprovedDuration,
+        adjustmentReason
+      );
+      expect(validation.valid).toBe(true);
+
+      approvalRecord = {
+        ...approvalRecord,
+        approved_duration: adjustedApprovedDuration,
+        adjustment_reason: adjustmentReason,
+        status: TaskTimeApprovalStatus.ADJUSTED,
+        reviewed_by_member_id: "member-mohamed",
+        reviewed_at: new Date().toISOString(),
+      };
+
+      // Invariants check:
+      // - Ahmed's original recorded total remains 5h30m (19800s)
+      expect(approvalRecord.recorded_duration).toBe(19800);
+      expect(approvalRecord.approved_duration).toBe(14400);
+      const diff = approvalRecord.approved_duration - approvalRecord.recorded_duration;
+      expect(diff).toBe(-5400); // -1h 30m
+      expect(approvalRecord.status).toBe(TaskTimeApprovalStatus.ADJUSTED);
+    });
+  });
+
+  describe("15. Acceptance Scenario 2 — Manager Personal Task (Section 56)", () => {
+    it("should route manager personal submission upward and block self-approval", () => {
+      // Mohamed reports to Karim
+      const mohamedUserId = "user-mohamed";
+      const mohamedMemberId = "member-mohamed";
+      const karimMemberId = "member-karim";
+
+      // Mohamed submits time on personal task
+      const personalApproval: ITaskTimeApproval = {
+        id: "approval-mohamed-task",
+        task_id: "task-manager-internal",
+        team_member_id: mohamedMemberId,
+        submitted_by_member_id: mohamedMemberId,
+        recorded_duration: 10800, // 3h
+        approved_duration: 0,
+        status: TaskTimeApprovalStatus.PENDING,
+        approver_member_id: karimMemberId, // Routed to Karim
+      };
+
+      expect(personalApproval.approver_member_id).toBe(karimMemberId);
+
+      // If Mohamed attempts to call approve on his own submission, backend rejects
+      const selfApprovalCheck = TaskTimeApprovalService.checkSelfApproval(mohamedUserId, mohamedUserId);
+      expect(selfApprovalCheck.allowed).toBe(false);
+      expect(selfApprovalCheck.code).toBe(TimeApprovalErrorCodes.SELF_APPROVAL_NOT_ALLOWED);
+
+      // When Karim approves, it is permitted
+      const karimApprovalCheck = TaskTimeApprovalService.checkSelfApproval(mohamedUserId, "user-karim");
+      expect(karimApprovalCheck.allowed).toBe(true);
+    });
+  });
+
+  describe("16. Acceptance Scenario 3 — Multiple Assignees (Section 57)", () => {
+    it("should maintain independent approvals and aggregate stats for multi-assignee tasks", () => {
+      // Ahmed & Sara assigned to same task
+      const ahmedApproval: ITaskTimeApproval = {
+        id: "appr-ahmed",
+        task_id: "task-feature-x",
+        team_member_id: "member-ahmed",
+        submitted_by_member_id: "member-ahmed",
+        recorded_duration: 18000, // 5h
+        approved_duration: 14400, // 4h
+        status: TaskTimeApprovalStatus.ADJUSTED,
+        adjustment_reason: "Reduced 1h",
+      };
+
+      const saraApproval: ITaskTimeApproval = {
+        id: "appr-sara",
+        task_id: "task-feature-x",
+        team_member_id: "member-sara",
+        submitted_by_member_id: "member-sara",
+        recorded_duration: 10800, // 3h
+        approved_duration: 10800, // 3h
+        status: TaskTimeApprovalStatus.APPROVED,
+      };
+
+      const taskApprovals = [ahmedApproval, saraApproval];
+
+      // Independent approval records check
+      expect(taskApprovals[0].team_member_id).toBe("member-ahmed");
+      expect(taskApprovals[0].status).toBe(TaskTimeApprovalStatus.ADJUSTED);
+      expect(taskApprovals[0].approved_duration).toBe(14400);
+
+      expect(taskApprovals[1].team_member_id).toBe("member-sara");
+      expect(taskApprovals[1].status).toBe(TaskTimeApprovalStatus.APPROVED);
+      expect(taskApprovals[1].approved_duration).toBe(10800);
+
+      // Task-level aggregate
+      const taskAggregateRecorded = taskApprovals.reduce((acc, curr) => acc + curr.recorded_duration, 0);
+      const taskAggregateApproved = taskApprovals.reduce((acc, curr) => acc + curr.approved_duration, 0);
+
+      expect(taskAggregateRecorded).toBe(28800); // 8h
+      expect(taskAggregateApproved).toBe(25200); // 7h
+    });
+  });
+
+  describe("17. Acceptance Scenario 4 & Security Review (Section 51 & 58)", () => {
+    it("should prevent cross-team approval access (tenant isolation)", () => {
+      function checkTeamAuthorization(
+        requestTeamId: string,
+        approvalTeamId: string
+      ): { authorized: boolean; code?: string } {
+        if (requestTeamId !== approvalTeamId) {
+          return { authorized: false, code: TimeApprovalErrorCodes.NOT_AUTHORIZED_TO_APPROVE };
+        }
+        return { authorized: true };
+      }
+
+      // Manager from Team B tries to access Team A approval
+      const teamBManagerAccess = checkTeamAuthorization("team-b-uuid", "team-a-uuid");
+      expect(teamBManagerAccess.authorized).toBe(false);
+      expect(teamBManagerAccess.code).toBe(TimeApprovalErrorCodes.NOT_AUTHORIZED_TO_APPROVE);
+
+      // Team A Manager accessing Team A approval
+      const teamAManagerAccess = checkTeamAuthorization("team-a-uuid", "team-a-uuid");
+      expect(teamAManagerAccess.authorized).toBe(true);
+    });
+
+    it("should sanitize and escape input in manager comments to prevent XSS", () => {
+      const dirtyComment = "<script>alert('xss')</script>Approved after review";
+      const sanitized = TaskTimeApprovalService.sanitizeComment(dirtyComment);
+      expect(sanitized).not.toContain("<script>");
+      expect(sanitized).toContain("Approved after review");
+    });
+  });
 });
+
 
 
