@@ -9,6 +9,7 @@ import {
   ProjectOutlined,
   BarChartOutlined,
   FileOutlined,
+  CheckCircleOutlined,
 } from '@/shared/antd-imports';
 
 const OverviewReports = lazy(() => import('@/pages/reporting/overview-reports/overview-reports'));
@@ -26,6 +27,9 @@ const EstimatedVsActualTimeReports = lazy(
   () => import('@/pages/reporting/time-sheets/estimated-vs-actual-time-reports')
 );
 const TimeLogsReports = lazy(() => import('@/pages/reporting/time-sheets/time-logs'));
+const ApprovalReports = lazy(
+  () => import('@/pages/reporting/time-sheets/ApprovalReportsPage')
+);
 
 // Type definition for a menu item
 export type ReportingMenuItems = {
@@ -120,6 +124,15 @@ export const reportingsItems: ReportingMenuItems[] = [
         element: React.createElement(TimeLogsReports),
         icon: React.createElement(FileOutlined),
       },
+      {
+        key: 'time-sheet-approvals',
+        name: 'approvalReports',
+        defaultValue: 'Approval Reports',
+        endpoint: 'time-sheet-approvals',
+        element: React.createElement(ApprovalReports),
+        icon: React.createElement(CheckCircleOutlined),
+      },
     ],
   },
 ];
+

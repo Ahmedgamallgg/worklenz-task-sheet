@@ -124,6 +124,80 @@ export const timeApprovalsApiService = {
     const response = await apiClient.get(`${rootUrl}/dashboard-stats`);
     return response.data;
   },
+
+  getApprovalReportsSummary: async (params?: {
+    employee_id?: string;
+    project_id?: string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+  }): Promise<IServerResponse<import('@/types/time-approval.types').IApprovalReportsSummary>> => {
+    const response = await apiClient.get(`${rootUrl}/reports/summary`, { params });
+    return response.data;
+  },
+
+  getEmployeeReports: async (params?: {
+    employee_id?: string;
+    project_id?: string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+  }): Promise<IServerResponse<import('@/types/time-approval.types').IEmployeeReportRow[]>> => {
+    const response = await apiClient.get(`${rootUrl}/reports/employees`, { params });
+    return response.data;
+  },
+
+  getTeamReports: async (params?: {
+    employee_id?: string;
+    project_id?: string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+  }): Promise<IServerResponse<import('@/types/time-approval.types').ITeamReportRow[]>> => {
+    const response = await apiClient.get(`${rootUrl}/reports/team`, { params });
+    return response.data;
+  },
+
+  getProjectReports: async (params?: {
+    employee_id?: string;
+    project_id?: string;
+    status?: string;
+    start_date?: string;
+    end_date?: string;
+    search?: string;
+  }): Promise<IServerResponse<import('@/types/time-approval.types').IProjectReportRow[]>> => {
+    const response = await apiClient.get(`${rootUrl}/reports/projects`, { params });
+    return response.data;
+  },
+
+  exportReports: async (
+    type: 'employee' | 'team' | 'project',
+    format: 'csv' | 'excel',
+    params?: Record<string, any>
+  ): Promise<void> => {
+    const endpoint = format === 'csv' ? `${rootUrl}/reports/export/csv` : `${rootUrl}/reports/export/excel`;
+    const response = await apiClient.get(endpoint, {
+      params: { ...params, type },
+      responseType: 'blob',
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    const dateStr = new Date().toISOString().split('T')[0];
+    link.setAttribute(
+      'download',
+      `approval-${type}-report-${dateStr}.${format === 'csv' ? 'csv' : 'xlsx'}`
+    );
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+  },
 };
+
 
 

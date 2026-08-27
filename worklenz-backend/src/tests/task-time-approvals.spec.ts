@@ -466,5 +466,89 @@ describe("Task Time Approvals Domain & Business Rules (Phase 3 Backend Logic)", 
       expect(memberSummaries[2].adjustment).toBe(-18600);
     });
   });
+
+  describe("Phase 8: Reports Calculations & Variance Metrics", () => {
+    it("should format duration seconds into clean readable strings (e.g., 5h 30m, -1h 30m)", () => {
+      expect(TaskTimeApprovalService.formatDurationString(19800)).toBe("5h 30m");
+      expect(TaskTimeApprovalService.formatDurationString(0)).toBe("0h 0m");
+      expect(TaskTimeApprovalService.formatDurationString(-5400)).toBe("-1h 30m");
+      expect(TaskTimeApprovalService.formatDurationString(7200)).toBe("2h 0m");
+      expect(TaskTimeApprovalService.formatDurationString(4500)).toBe("1h 15m");
+    });
+
+    it("should correctly calculate Employee Report metrics including adjustment and average variance", () => {
+      // Scenario: Employee Ahmed completed 4 tasks
+      const ahmedTasks = [
+        // Task 1: est 3h (10800s), recorded 3h (10800s), approved 3h (10800s) -> variance 0%
+        { est_sec: 10800, rec_sec: 10800, app_sec: 10800, max_sec: 14400, status: "APPROVED" },
+        // Task 2: est 4h (14400s), recorded 5.5h (19800s), approved 4h (14400s), max 5h (18000s) -> over est (+37.5%), over max, adj -1.5h (-5400s)
+        { est_sec: 14400, rec_sec: 19800, app_sec: 14400, max_sec: 18000, status: "ADJUSTED" },
+        // Task 3: est 2h (7200s), recorded 2.5h (9000s), approved 2.5h (9000s), max null -> over est (+25%), adj 0
+        { est_sec: 7200, rec_sec: 9000, app_sec: 9000, max_sec: null, status: "APPROVED" },
+        // Task 4: est 5h (18000s), recorded 4h (14400s), approved 4h (14400s), max null -> under est (-20%), adj 0
+        { est_sec: 18000, rec_sec: 14400, app_sec: 14400, max_sec: null, status: "APPROVED" },
+      ];
+
+      const totalEstimated = ahmedTasks.reduce((s, t) => s + t.est_sec, 0); // 50400s (14h)
+      const totalRecorded = ahmedTasks.reduce((s, t) => s + t.rec_sec, 0); // 54000s (15h)
+      const totalApproved = ahmedTasks.reduce((s, t) => s + t.app_sec, 0); // 48600s (13.5h)
+      const totalAdjustment = totalRecorded - totalApproved; // 5400s (1.5h reduction)
+      const tasksOverEstimate = ahmedTasks.filter((t) => t.rec_sec > t.est_sec).length; // 2 tasks
+      const tasksOverMax = ahmedTasks.filter((t) => t.max_sec !== null && t.rec_sec > t.max_sec).length; // 1 task
+
+      const overallVariancePct = Math.round(((totalRecorded - totalEstimated) / totalEstimated) * 10000) / 100; // +7.14%
+
+      expect(totalEstimated).toBe(50400);
+      expect(totalRecorded).toBe(54000);
+      expect(totalApproved).toBe(48600);
+      expect(totalAdjustment).toBe(5400);
+      expect(tasksOverEstimate).toBe(2);
+      expect(tasksOverMax).toBe(1);
+      expect(overallVariancePct).toBe(7.14);
+    });
+
+    it("should compute Team Report summary and difference correctly without mutating recorded hours", () => {
+      const teamData = [
+        { name: "Ahmed", tasks: 8, est_sec: 100800, rec_sec: 115200, app_sec: 104400, diff_sec: 10800 },
+        { name: "Sara", tasks: 6, est_sec: 86400, rec_sec: 86400, app_sec: 86400, diff_sec: 0 },
+        { name: "Mohamed", tasks: 10, est_sec: 144000, rec_sec: 151200, app_sec: 144000, diff_sec: 7200 },
+      ];
+
+      const totalTasks = teamData.reduce((s, m) => s + m.tasks, 0);
+      const totalEst = teamData.reduce((s, m) => s + m.est_sec, 0);
+      const totalRec = teamData.reduce((s, m) => s + m.rec_sec, 0);
+      const totalApp = teamData.reduce((s, m) => s + m.app_sec, 0);
+      const totalDiff = totalRec - totalApp;
+      const adjustmentPct = Math.round((totalDiff / totalRec) * 10000) / 100;
+
+      expect(totalTasks).toBe(24);
+      expect(totalEst).toBe(331200); // 92h
+      expect(totalRec).toBe(352800); // 98h
+      expect(totalApp).toBe(334800); // 93h
+      expect(totalDiff).toBe(18000);  // 5h adjusted
+      expect(adjustmentPct).toBe(5.1); // 5.1% adjustment rate
+    });
+
+    it("should calculate Project Report variance comparing Estimated, Recorded, and Approved", () => {
+      const projectData = {
+        name: "Website Redesign",
+        tasks_count: 12,
+        estimated_sec: 144000, // 40h
+        recorded_sec: 165600,  // 46h
+        approved_sec: 151200,  // 42h
+        difference_sec: 14400, // 4h
+        tasks_above_estimate: 4,
+        tasks_above_max: 2,
+      };
+
+      const variancePct = Math.round(((projectData.recorded_sec - projectData.estimated_sec) / projectData.estimated_sec) * 10000) / 100;
+
+      expect(projectData.difference_sec).toBe(14400);
+      expect(variancePct).toBe(15); // +15% recorded over estimate
+      expect(projectData.tasks_above_estimate).toBe(4);
+      expect(projectData.tasks_above_max).toBe(2);
+    });
+  });
 });
+
 

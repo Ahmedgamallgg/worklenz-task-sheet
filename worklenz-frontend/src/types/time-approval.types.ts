@@ -117,3 +117,86 @@ export interface IManagerDashboardStats {
   };
 }
 
+export interface IApprovalReportsSummary {
+  total_recorded_seconds: number;
+  total_approved_seconds: number;
+  total_pending_seconds: number;
+  total_adjustment_seconds: number;
+  adjustment_percentage: number;
+  total_estimated_seconds: number;
+  tasks_above_estimate_count: number;
+  tasks_above_maximum_count: number;
+  approved_tasks_count: number;
+  adjusted_tasks_count: number;
+  rejected_submissions_count: number;
+  pending_submissions_count: number;
+  total_submissions_count: number;
+  total_members_count: number;
+  total_projects_count: number;
+}
+
+export interface IEmployeeReportRow {
+  team_member_id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  avatar_url?: string;
+  role_name: string;
+  tasks_completed_count: number;
+  total_tasks_count: number;
+  estimated_seconds: number;
+  recorded_seconds: number;
+  approved_seconds: number;
+  pending_seconds: number;
+  adjustment_seconds: number;
+  average_variance_percentage: number;
+  tasks_above_estimate_count: number;
+  tasks_above_maximum_count: number;
+  approved_count: number;
+  adjusted_count: number;
+  rejected_count: number;
+  pending_count: number;
+  total_submissions_count: number;
+}
+
+export interface ITeamReportRow {
+  team_member_id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  avatar_url?: string;
+  role_name: string;
+  tasks_count: number;
+  estimated_seconds: number;
+  recorded_seconds: number;
+  approved_seconds: number;
+  pending_seconds: number;
+  difference_seconds: number;
+  variance_percentage: number;
+  approved_count: number;
+  adjusted_count: number;
+  rejected_count: number;
+  pending_count: number;
+}
+
+export interface IProjectReportRow {
+  project_id: string;
+  project_name: string;
+  project_key: string;
+  project_color?: string;
+  tasks_count: number;
+  estimated_seconds: number;
+  recorded_seconds: number;
+  approved_seconds: number;
+  pending_seconds: number;
+  difference_seconds: number;
+  variance_percentage: number;
+  tasks_above_estimate_count: number;
+  tasks_above_maximum_count: number;
+  approved_count: number;
+  adjusted_count: number;
+  rejected_count: number;
+  pending_count: number;
+}
+
+

@@ -11,6 +11,8 @@ import { NotificationsService } from "./notifications/notifications.service";
 import { IO } from "../shared/io";
 import { SocketEvents } from "../socket.io/events";
 import { IPassportSession } from "../interfaces/passport-session";
+import Excel from "exceljs";
+import moment from "moment";
 
 export interface IApprovalSubmitParams {
   taskId: string;
@@ -45,6 +47,18 @@ export interface IApprovalFilterParams {
   endDate?: string;
   overEstimate?: boolean | string;
   overMaximum?: boolean | string;
+  search?: string;
+}
+
+export interface IApprovalReportFilterParams {
+  teamId: string;
+  userId: string;
+  isAdmin?: boolean;
+  employeeId?: string;
+  projectId?: string;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
   search?: string;
 }
 
@@ -1720,5 +1734,591 @@ export class TaskTimeApprovalService {
       },
     };
   }
+
+  /**
+   * Helper: Resolve accessible member IDs based on user permissions
+   */
+  public static async resolveReportScope(params: {
+    teamId: string;
+    userId: string;
+    isAdmin?: boolean;
+  }): Promise<{ isManager: boolean; subordinateMemberIds: string[]; currentMemberId: string | null }> {
+    const { teamId, userId, isAdmin } = params;
+
+    const currentMemberRes = await db.query(
+      `SELECT tm.id, tm.role_id, r.name AS role_name
+       FROM team_members tm
+       LEFT JOIN roles r ON r.id = tm.role_id
+       WHERE tm.user_id = $1 AND tm.team_id = $2 AND tm.active = TRUE;`,
+      [userId, teamId]
+    );
+
+    const currentMember = currentMemberRes.rows[0];
+    const currentMemberId = currentMember?.id || null;
+    const isTeamLead =
+      currentMember?.role_name?.toLowerCase().includes("team lead") ||
+      currentMember?.role_name?.toLowerCase().includes("lead");
+
+    let isManager = !!isAdmin || !!isTeamLead;
+    let subordinateMemberIds: string[] = [];
+
+    if (isAdmin) {
+      const allMembersRes = await db.query(
+        `SELECT id FROM team_members WHERE team_id = $1 AND active = TRUE;`,
+        [teamId]
+      );
+      subordinateMemberIds = allMembersRes.rows.map((r: any) => r.id);
+      isManager = true;
+    } else if (currentMemberId) {
+      const subMembersRes = await db.query(
+        `SELECT tm.id
+         FROM team_members tm
+         WHERE tm.team_id = $1 AND tm.active = TRUE
+           AND (tm.id = $2 OR tm.reports_to_member_id = $2 OR tm.id IN (
+             SELECT managed_member_id FROM team_lead_managed_members WHERE manager_id = $2
+           ));`,
+        [teamId, currentMemberId]
+      );
+      subordinateMemberIds = subMembersRes.rows.map((r: any) => r.id);
+      if (subordinateMemberIds.length > 1 || isTeamLead) {
+        isManager = true;
+      }
+    }
+
+    if (subordinateMemberIds.length === 0 && currentMemberId) {
+      subordinateMemberIds = [currentMemberId];
+    }
+
+    return { isManager, subordinateMemberIds, currentMemberId };
+  }
+
+  /**
+   * Helper: Build common SQL filters for reporting queries
+   */
+  private static buildReportFilters(
+    params: IApprovalReportFilterParams,
+    subordinateMemberIds: string[],
+    paramStartIndex: number = 3
+  ): {
+    whereConditions: string[];
+    queryParams: any[];
+  } {
+    const { employeeId, projectId, status, startDate, endDate, search } = params;
+    const conditions: string[] = [];
+    const queryParams: any[] = [];
+    let idx = paramStartIndex;
+
+    if (employeeId) {
+      conditions.push(`tta.team_member_id = $${idx++}`);
+      queryParams.push(employeeId);
+    }
+
+    if (projectId) {
+      conditions.push(`t.project_id = $${idx++}`);
+      queryParams.push(projectId);
+    }
+
+    if (status && status !== "ALL") {
+      conditions.push(`tta.status = $${idx++}`);
+      queryParams.push(status);
+    }
+
+    if (startDate) {
+      conditions.push(`tta.submitted_at::DATE >= $${idx++}::DATE`);
+      queryParams.push(startDate);
+    }
+
+    if (endDate) {
+      conditions.push(`tta.submitted_at::DATE <= $${idx++}::DATE`);
+      queryParams.push(endDate);
+    }
+
+    if (search && search.trim()) {
+      conditions.push(`(t.name ILIKE $${idx} OR u.name ILIKE $${idx} OR p.name ILIKE $${idx})`);
+      queryParams.push(`%${search.trim()}%`);
+      idx++;
+    }
+
+    return { whereConditions: conditions, queryParams };
+  }
+
+  /**
+   * Get Approval Reports Summary (KPI Cards)
+   */
+  public static async getApprovalReportsSummary(
+    params: IApprovalReportFilterParams
+  ): Promise<{
+    total_recorded_seconds: number;
+    total_approved_seconds: number;
+    total_pending_seconds: number;
+    total_adjustment_seconds: number;
+    adjustment_percentage: number;
+    total_estimated_seconds: number;
+    tasks_above_estimate_count: number;
+    tasks_above_maximum_count: number;
+    approved_tasks_count: number;
+    adjusted_tasks_count: number;
+    rejected_submissions_count: number;
+    pending_submissions_count: number;
+    total_submissions_count: number;
+    total_members_count: number;
+    total_projects_count: number;
+  }> {
+    const { teamId, userId, isAdmin } = params;
+    const { subordinateMemberIds } = await this.resolveReportScope({ teamId, userId, isAdmin });
+
+    if (subordinateMemberIds.length === 0) {
+      return {
+        total_recorded_seconds: 0,
+        total_approved_seconds: 0,
+        total_pending_seconds: 0,
+        total_adjustment_seconds: 0,
+        adjustment_percentage: 0,
+        total_estimated_seconds: 0,
+        tasks_above_estimate_count: 0,
+        tasks_above_maximum_count: 0,
+        approved_tasks_count: 0,
+        adjusted_tasks_count: 0,
+        rejected_submissions_count: 0,
+        pending_submissions_count: 0,
+        total_submissions_count: 0,
+        total_members_count: 0,
+        total_projects_count: 0,
+      };
+    }
+
+    const { whereConditions, queryParams } = this.buildReportFilters(params, subordinateMemberIds, 3);
+    const extraWhere = whereConditions.length > 0 ? ` AND ${whereConditions.join(" AND ")}` : "";
+
+    const query = `
+      SELECT 
+        COALESCE(SUM(tta.recorded_duration), 0) AS total_recorded_seconds,
+        COALESCE(SUM(CASE WHEN tta.status IN ('APPROVED', 'ADJUSTED') THEN tta.approved_duration ELSE 0 END), 0) AS total_approved_seconds,
+        COALESCE(SUM(CASE WHEN tta.status = 'PENDING' THEN tta.recorded_duration ELSE 0 END), 0) AS total_pending_seconds,
+        COALESCE(SUM(CASE WHEN tta.status IN ('APPROVED', 'ADJUSTED') THEN (tta.recorded_duration - tta.approved_duration) ELSE 0 END), 0) AS total_adjustment_seconds,
+        COALESCE(SUM(t.total_minutes * 60), 0) AS total_estimated_seconds,
+        COUNT(DISTINCT CASE WHEN tta.recorded_duration > (t.total_minutes * 60) AND t.total_minutes > 0 THEN tta.task_id END) AS tasks_above_estimate_count,
+        COUNT(DISTINCT CASE WHEN t.maximum_approved_minutes IS NOT NULL AND tta.recorded_duration > (t.maximum_approved_minutes * 60) THEN tta.task_id END) AS tasks_above_maximum_count,
+        COUNT(CASE WHEN tta.status = 'APPROVED' THEN 1 END) AS approved_tasks_count,
+        COUNT(CASE WHEN tta.status = 'ADJUSTED' THEN 1 END) AS adjusted_tasks_count,
+        COUNT(CASE WHEN tta.status = 'REJECTED' THEN 1 END) AS rejected_submissions_count,
+        COUNT(CASE WHEN tta.status = 'PENDING' THEN 1 END) AS pending_submissions_count,
+        COUNT(tta.id) AS total_submissions_count,
+        COUNT(DISTINCT tta.team_member_id) AS total_members_count,
+        COUNT(DISTINCT t.project_id) AS total_projects_count
+      FROM task_time_approvals tta
+      JOIN tasks t ON t.id = tta.task_id
+      JOIN projects p ON p.id = t.project_id
+      JOIN team_members tm ON tm.id = tta.team_member_id
+      JOIN users u ON u.id = tm.user_id
+      WHERE tta.team_id = $1
+        AND tta.team_member_id = ANY($2::UUID[])
+        ${extraWhere};
+    `;
+
+    const res = await db.query(query, [teamId, subordinateMemberIds, ...queryParams]);
+    const row = res.rows[0] || {};
+
+    const totalRecorded = parseInt(row.total_recorded_seconds, 10) || 0;
+    const totalApproved = parseInt(row.total_approved_seconds, 10) || 0;
+    const totalAdjustment = parseInt(row.total_adjustment_seconds, 10) || 0;
+    const adjustmentPct = totalRecorded > 0 ? Math.round((totalAdjustment / totalRecorded) * 10000) / 100 : 0;
+
+    return {
+      total_recorded_seconds: totalRecorded,
+      total_approved_seconds: totalApproved,
+      total_pending_seconds: parseInt(row.total_pending_seconds, 10) || 0,
+      total_adjustment_seconds: totalAdjustment,
+      adjustment_percentage: adjustmentPct,
+      total_estimated_seconds: parseInt(row.total_estimated_seconds, 10) || 0,
+      tasks_above_estimate_count: parseInt(row.tasks_above_estimate_count, 10) || 0,
+      tasks_above_maximum_count: parseInt(row.tasks_above_maximum_count, 10) || 0,
+      approved_tasks_count: parseInt(row.approved_tasks_count, 10) || 0,
+      adjusted_tasks_count: parseInt(row.adjusted_tasks_count, 10) || 0,
+      rejected_submissions_count: parseInt(row.rejected_submissions_count, 10) || 0,
+      pending_submissions_count: parseInt(row.pending_submissions_count, 10) || 0,
+      total_submissions_count: parseInt(row.total_submissions_count, 10) || 0,
+      total_members_count: parseInt(row.total_members_count, 10) || 0,
+      total_projects_count: parseInt(row.total_projects_count, 10) || 0,
+    };
+  }
+
+  /**
+   * Get Employee Report
+   * Metrics: Tasks completed, Estimated, Recorded, Approved, Adjustment, Average Variance, Tasks > Estimate, Tasks > Max
+   */
+  public static async getEmployeeReports(params: IApprovalReportFilterParams): Promise<any[]> {
+    const { teamId, userId, isAdmin, employeeId, projectId, status, startDate, endDate, search } = params;
+    const { subordinateMemberIds } = await this.resolveReportScope({ teamId, userId, isAdmin });
+
+    if (subordinateMemberIds.length === 0) {
+      return [];
+    }
+
+    let targetMemberIds = subordinateMemberIds;
+    if (employeeId && subordinateMemberIds.includes(employeeId)) {
+      targetMemberIds = [employeeId];
+    }
+
+    const conditions: string[] = [];
+    const queryParams: any[] = [teamId, targetMemberIds];
+    let idx = 3;
+
+    if (projectId) {
+      conditions.push(`t.project_id = $${idx++}`);
+      queryParams.push(projectId);
+    }
+
+    if (status && status !== "ALL") {
+      conditions.push(`tta.status = $${idx++}`);
+      queryParams.push(status);
+    }
+
+    if (startDate) {
+      conditions.push(`tta.submitted_at::DATE >= $${idx++}::DATE`);
+      queryParams.push(startDate);
+    }
+
+    if (endDate) {
+      conditions.push(`tta.submitted_at::DATE <= $${idx++}::DATE`);
+      queryParams.push(endDate);
+    }
+
+    const ttaFilterClause = conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
+
+    let memberSearchClause = "";
+    if (search && search.trim()) {
+      memberSearchClause = ` AND (u.name ILIKE $${idx} OR u.email ILIKE $${idx})`;
+      queryParams.push(`%${search.trim()}%`);
+      idx++;
+    }
+
+    const query = `
+      SELECT 
+        tm.id AS team_member_id,
+        u.id AS user_id,
+        u.name,
+        u.email,
+        u.avatar_url,
+        r.name AS role_name,
+        COALESCE((
+          SELECT COUNT(DISTINCT t.id)
+          FROM tasks t
+          JOIN tasks_assignees ta ON ta.task_id = t.id
+          WHERE ta.team_member_id = tm.id
+            AND t.archived IS FALSE
+            AND is_completed(t.status_id, t.project_id)
+        ), 0) AS tasks_completed_count,
+        COALESCE((
+          SELECT COUNT(DISTINCT t.id)
+          FROM tasks t
+          JOIN tasks_assignees ta ON ta.task_id = t.id
+          WHERE ta.team_member_id = tm.id
+            AND t.archived IS FALSE
+        ), 0) AS total_tasks_count,
+        COALESCE(SUM(t.total_minutes * 60), 0) AS estimated_seconds,
+        COALESCE(SUM(tta.recorded_duration), 0) AS recorded_seconds,
+        COALESCE(SUM(CASE WHEN tta.status IN ('APPROVED', 'ADJUSTED') THEN tta.approved_duration ELSE 0 END), 0) AS approved_seconds,
+        COALESCE(SUM(CASE WHEN tta.status = 'PENDING' THEN tta.recorded_duration ELSE 0 END), 0) AS pending_seconds,
+        COALESCE(SUM(CASE WHEN tta.status IN ('APPROVED', 'ADJUSTED') THEN (tta.recorded_duration - tta.approved_duration) ELSE 0 END), 0) AS adjustment_seconds,
+        COUNT(DISTINCT CASE WHEN tta.recorded_duration > (t.total_minutes * 60) AND t.total_minutes > 0 THEN tta.task_id END) AS tasks_above_estimate_count,
+        COUNT(DISTINCT CASE WHEN t.maximum_approved_minutes IS NOT NULL AND tta.recorded_duration > (t.maximum_approved_minutes * 60) THEN tta.task_id END) AS tasks_above_maximum_count,
+        COUNT(CASE WHEN tta.status = 'APPROVED' THEN 1 END) AS approved_count,
+        COUNT(CASE WHEN tta.status = 'ADJUSTED' THEN 1 END) AS adjusted_count,
+        COUNT(CASE WHEN tta.status = 'REJECTED' THEN 1 END) AS rejected_count,
+        COUNT(CASE WHEN tta.status = 'PENDING' THEN 1 END) AS pending_count,
+        COUNT(tta.id) AS total_submissions_count
+      FROM team_members tm
+      JOIN users u ON u.id = tm.user_id
+      LEFT JOIN roles r ON r.id = tm.role_id
+      LEFT JOIN task_time_approvals tta ON tta.team_member_id = tm.id AND tta.team_id = $1 ${ttaFilterClause}
+      LEFT JOIN tasks t ON t.id = tta.task_id
+      WHERE tm.team_id = $1
+        AND tm.active = TRUE
+        AND tm.id = ANY($2::UUID[])
+        ${memberSearchClause}
+      GROUP BY tm.id, u.id, u.name, u.email, u.avatar_url, r.name
+      ORDER BY u.name ASC;
+    `;
+
+    const res = await db.query(query, queryParams);
+
+    return res.rows.map((row: any) => {
+      const estimated = parseInt(row.estimated_seconds, 10) || 0;
+      const recorded = parseInt(row.recorded_seconds, 10) || 0;
+      const approved = parseInt(row.approved_seconds, 10) || 0;
+      const pending = parseInt(row.pending_seconds, 10) || 0;
+      const adjustment = parseInt(row.adjustment_seconds, 10) || 0;
+
+      let variancePct = 0;
+      if (estimated > 0) {
+        variancePct = Math.round(((recorded - estimated) / estimated) * 10000) / 100;
+      }
+
+      return {
+        team_member_id: row.team_member_id,
+        user_id: row.user_id,
+        name: row.name,
+        email: row.email,
+        avatar_url: row.avatar_url,
+        role_name: row.role_name || "Member",
+        tasks_completed_count: parseInt(row.tasks_completed_count, 10) || 0,
+        total_tasks_count: parseInt(row.total_tasks_count, 10) || 0,
+        estimated_seconds: estimated,
+        recorded_seconds: recorded,
+        approved_seconds: approved,
+        pending_seconds: pending,
+        adjustment_seconds: adjustment,
+        average_variance_percentage: variancePct,
+        tasks_above_estimate_count: parseInt(row.tasks_above_estimate_count, 10) || 0,
+        tasks_above_maximum_count: parseInt(row.tasks_above_maximum_count, 10) || 0,
+        approved_count: parseInt(row.approved_count, 10) || 0,
+        adjusted_count: parseInt(row.adjusted_count, 10) || 0,
+        rejected_count: parseInt(row.rejected_count, 10) || 0,
+        pending_count: parseInt(row.pending_count, 10) || 0,
+        total_submissions_count: parseInt(row.total_submissions_count, 10) || 0,
+      };
+    });
+  }
+
+  /**
+   * Get Team Report
+   * Shows: Employee, Tasks, Estimated, Recorded, Approved, Difference
+   */
+  public static async getTeamReports(params: IApprovalReportFilterParams): Promise<any[]> {
+    const { teamId, userId, isAdmin, employeeId, projectId, status, startDate, endDate, search } = params;
+    const { subordinateMemberIds } = await this.resolveReportScope({ teamId, userId, isAdmin });
+
+    if (subordinateMemberIds.length === 0) {
+      return [];
+    }
+
+    let targetMemberIds = subordinateMemberIds;
+    if (employeeId && subordinateMemberIds.includes(employeeId)) {
+      targetMemberIds = [employeeId];
+    }
+
+    const conditions: string[] = [];
+    const queryParams: any[] = [teamId, targetMemberIds];
+    let idx = 3;
+
+    if (projectId) {
+      conditions.push(`t.project_id = $${idx++}`);
+      queryParams.push(projectId);
+    }
+
+    if (status && status !== "ALL") {
+      conditions.push(`tta.status = $${idx++}`);
+      queryParams.push(status);
+    }
+
+    if (startDate) {
+      conditions.push(`tta.submitted_at::DATE >= $${idx++}::DATE`);
+      queryParams.push(startDate);
+    }
+
+    if (endDate) {
+      conditions.push(`tta.submitted_at::DATE <= $${idx++}::DATE`);
+      queryParams.push(endDate);
+    }
+
+    const ttaFilterClause = conditions.length > 0 ? `AND ${conditions.join(" AND ")}` : "";
+
+    let memberSearchClause = "";
+    if (search && search.trim()) {
+      memberSearchClause = ` AND (u.name ILIKE $${idx} OR u.email ILIKE $${idx})`;
+      queryParams.push(`%${search.trim()}%`);
+      idx++;
+    }
+
+    const query = `
+      SELECT 
+        tm.id AS team_member_id,
+        u.id AS user_id,
+        u.name,
+        u.email,
+        u.avatar_url,
+        r.name AS role_name,
+        COUNT(DISTINCT tta.task_id) AS tasks_count,
+        COALESCE(SUM(t.total_minutes * 60), 0) AS estimated_seconds,
+        COALESCE(SUM(tta.recorded_duration), 0) AS recorded_seconds,
+        COALESCE(SUM(CASE WHEN tta.status IN ('APPROVED', 'ADJUSTED') THEN tta.approved_duration ELSE 0 END), 0) AS approved_seconds,
+        COALESCE(SUM(CASE WHEN tta.status = 'PENDING' THEN tta.recorded_duration ELSE 0 END), 0) AS pending_seconds,
+        COALESCE(SUM(CASE WHEN tta.status IN ('APPROVED', 'ADJUSTED') THEN (tta.recorded_duration - tta.approved_duration) ELSE 0 END), 0) AS difference_seconds,
+        COUNT(CASE WHEN tta.status = 'APPROVED' THEN 1 END) AS approved_count,
+        COUNT(CASE WHEN tta.status = 'ADJUSTED' THEN 1 END) AS adjusted_count,
+        COUNT(CASE WHEN tta.status = 'REJECTED' THEN 1 END) AS rejected_count,
+        COUNT(CASE WHEN tta.status = 'PENDING' THEN 1 END) AS pending_count
+      FROM team_members tm
+      JOIN users u ON u.id = tm.user_id
+      LEFT JOIN roles r ON r.id = tm.role_id
+      LEFT JOIN task_time_approvals tta ON tta.team_member_id = tm.id AND tta.team_id = $1 ${ttaFilterClause}
+      LEFT JOIN tasks t ON t.id = tta.task_id
+      WHERE tm.team_id = $1
+        AND tm.active = TRUE
+        AND tm.id = ANY($2::UUID[])
+        ${memberSearchClause}
+      GROUP BY tm.id, u.id, u.name, u.email, u.avatar_url, r.name
+      ORDER BY u.name ASC;
+    `;
+
+    const res = await db.query(query, queryParams);
+
+    return res.rows.map((row: any) => {
+      const estimated = parseInt(row.estimated_seconds, 10) || 0;
+      const recorded = parseInt(row.recorded_seconds, 10) || 0;
+      const approved = parseInt(row.approved_seconds, 10) || 0;
+      const difference = parseInt(row.difference_seconds, 10) || 0;
+
+      let variancePct = 0;
+      if (estimated > 0) {
+        variancePct = Math.round(((recorded - estimated) / estimated) * 10000) / 100;
+      }
+
+      return {
+        team_member_id: row.team_member_id,
+        user_id: row.user_id,
+        name: row.name,
+        email: row.email,
+        avatar_url: row.avatar_url,
+        role_name: row.role_name || "Member",
+        tasks_count: parseInt(row.tasks_count, 10) || 0,
+        estimated_seconds: estimated,
+        recorded_seconds: recorded,
+        approved_seconds: approved,
+        pending_seconds: parseInt(row.pending_seconds, 10) || 0,
+        difference_seconds: difference,
+        variance_percentage: variancePct,
+        approved_count: parseInt(row.approved_count, 10) || 0,
+        adjusted_count: parseInt(row.adjusted_count, 10) || 0,
+        rejected_count: parseInt(row.rejected_count, 10) || 0,
+        pending_count: parseInt(row.pending_count, 10) || 0,
+      };
+    });
+  }
+
+  /**
+   * Get Project Report
+   * Shows: Estimated, Recorded, Approved, Variance
+   */
+  public static async getProjectReports(params: IApprovalReportFilterParams): Promise<any[]> {
+    const { teamId, userId, isAdmin, employeeId, projectId, status, startDate, endDate, search } = params;
+    const { subordinateMemberIds } = await this.resolveReportScope({ teamId, userId, isAdmin });
+
+    if (subordinateMemberIds.length === 0) {
+      return [];
+    }
+
+    const conditions: string[] = [];
+    const queryParams: any[] = [teamId, subordinateMemberIds];
+    let idx = 3;
+
+    if (employeeId) {
+      conditions.push(`tta.team_member_id = $${idx++}`);
+      queryParams.push(employeeId);
+    }
+
+    if (projectId) {
+      conditions.push(`p.id = $${idx++}`);
+      queryParams.push(projectId);
+    }
+
+    if (status && status !== "ALL") {
+      conditions.push(`tta.status = $${idx++}`);
+      queryParams.push(status);
+    }
+
+    if (startDate) {
+      conditions.push(`tta.submitted_at::DATE >= $${idx++}::DATE`);
+      queryParams.push(startDate);
+    }
+
+    if (endDate) {
+      conditions.push(`tta.submitted_at::DATE <= $${idx++}::DATE`);
+      queryParams.push(endDate);
+    }
+
+    if (search && search.trim()) {
+      conditions.push(`(p.name ILIKE $${idx} OR p.key ILIKE $${idx})`);
+      queryParams.push(`%${search.trim()}%`);
+      idx++;
+    }
+
+    const extraWhere = conditions.length > 0 ? ` AND ${conditions.join(" AND ")}` : "";
+
+    const query = `
+      SELECT 
+        p.id AS project_id,
+        p.name AS project_name,
+        p.key AS project_key,
+        p.color_code AS project_color,
+        COUNT(DISTINCT tta.task_id) AS tasks_count,
+        COALESCE(SUM(t.total_minutes * 60), 0) AS estimated_seconds,
+        COALESCE(SUM(tta.recorded_duration), 0) AS recorded_seconds,
+        COALESCE(SUM(CASE WHEN tta.status IN ('APPROVED', 'ADJUSTED') THEN tta.approved_duration ELSE 0 END), 0) AS approved_seconds,
+        COALESCE(SUM(CASE WHEN tta.status = 'PENDING' THEN tta.recorded_duration ELSE 0 END), 0) AS pending_seconds,
+        COALESCE(SUM(CASE WHEN tta.status IN ('APPROVED', 'ADJUSTED') THEN (tta.recorded_duration - tta.approved_duration) ELSE 0 END), 0) AS difference_seconds,
+        COUNT(DISTINCT CASE WHEN tta.recorded_duration > (t.total_minutes * 60) AND t.total_minutes > 0 THEN tta.task_id END) AS tasks_above_estimate_count,
+        COUNT(DISTINCT CASE WHEN t.maximum_approved_minutes IS NOT NULL AND tta.recorded_duration > (t.maximum_approved_minutes * 60) THEN tta.task_id END) AS tasks_above_maximum_count,
+        COUNT(CASE WHEN tta.status = 'APPROVED' THEN 1 END) AS approved_count,
+        COUNT(CASE WHEN tta.status = 'ADJUSTED' THEN 1 END) AS adjusted_count,
+        COUNT(CASE WHEN tta.status = 'REJECTED' THEN 1 END) AS rejected_count,
+        COUNT(CASE WHEN tta.status = 'PENDING' THEN 1 END) AS pending_count
+      FROM projects p
+      JOIN tasks t ON t.project_id = p.id
+      JOIN task_time_approvals tta ON tta.task_id = t.id AND tta.team_id = $1
+      WHERE p.team_id = $1
+        AND tta.team_member_id = ANY($2::UUID[])
+        ${extraWhere}
+      GROUP BY p.id, p.name, p.key, p.color_code
+      ORDER BY p.name ASC;
+    `;
+
+    const res = await db.query(query, queryParams);
+
+    return res.rows.map((row: any) => {
+      const estimated = parseInt(row.estimated_seconds, 10) || 0;
+      const recorded = parseInt(row.recorded_seconds, 10) || 0;
+      const approved = parseInt(row.approved_seconds, 10) || 0;
+      const difference = parseInt(row.difference_seconds, 10) || 0;
+
+      let variancePct = 0;
+      if (estimated > 0) {
+        variancePct = Math.round(((recorded - estimated) / estimated) * 10000) / 100;
+      }
+
+      return {
+        project_id: row.project_id,
+        project_name: row.project_name,
+        project_key: row.project_key,
+        project_color: row.project_color,
+        tasks_count: parseInt(row.tasks_count, 10) || 0,
+        estimated_seconds: estimated,
+        recorded_seconds: recorded,
+        approved_seconds: approved,
+        pending_seconds: parseInt(row.pending_seconds, 10) || 0,
+        difference_seconds: difference,
+        variance_percentage: variancePct,
+        tasks_above_estimate_count: parseInt(row.tasks_above_estimate_count, 10) || 0,
+        tasks_above_maximum_count: parseInt(row.tasks_above_maximum_count, 10) || 0,
+        approved_count: parseInt(row.approved_count, 10) || 0,
+        adjusted_count: parseInt(row.adjusted_count, 10) || 0,
+        rejected_count: parseInt(row.rejected_count, 10) || 0,
+        pending_count: parseInt(row.pending_count, 10) || 0,
+      };
+    });
+  }
+
+  /**
+   * Helper: Format duration in seconds to "Xh Ym" string
+   */
+  public static formatDurationString(seconds: number): string {
+    const totalMinutes = Math.round(seconds / 60);
+    const hours = Math.floor(Math.abs(totalMinutes) / 60);
+    const minutes = Math.abs(totalMinutes) % 60;
+    const sign = totalMinutes < 0 ? "-" : "";
+    return `${sign}${hours}h ${minutes}m`;
+  }
 }
+
 

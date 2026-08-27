@@ -53,6 +53,37 @@ taskTimeApprovalApiRouter.get(
   safeControllerFunction(TaskTimeApprovalController.getTeamTimesheet)
 );
 
+// Reports APIs (must be placed before parameterized /:id routes)
+taskTimeApprovalApiRouter.get(
+  "/reports/summary",
+  safeControllerFunction(TaskTimeApprovalController.getReportsSummary)
+);
+
+taskTimeApprovalApiRouter.get(
+  "/reports/employees",
+  safeControllerFunction(TaskTimeApprovalController.getEmployeeReports)
+);
+
+taskTimeApprovalApiRouter.get(
+  "/reports/team",
+  safeControllerFunction(TaskTimeApprovalController.getTeamReports)
+);
+
+taskTimeApprovalApiRouter.get(
+  "/reports/projects",
+  safeControllerFunction(TaskTimeApprovalController.getProjectReports)
+);
+
+taskTimeApprovalApiRouter.get(
+  "/reports/export/csv",
+  safeControllerFunction(TaskTimeApprovalController.exportReportsCSV)
+);
+
+taskTimeApprovalApiRouter.get(
+  "/reports/export/excel",
+  safeControllerFunction(TaskTimeApprovalController.exportReportsExcel)
+);
+
 // Get approval by task
 taskTimeApprovalApiRouter.get(
   "/task/:taskId",
