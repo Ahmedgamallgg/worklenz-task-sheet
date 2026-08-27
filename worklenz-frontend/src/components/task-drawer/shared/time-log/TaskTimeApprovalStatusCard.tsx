@@ -6,9 +6,11 @@ import {
   Card,
   Divider,
   Flex,
+  Modal,
   Popconfirm,
   Space,
   Tag,
+  Timeline,
   Tooltip,
   Typography,
   message,
@@ -18,6 +20,7 @@ import {
   ClockCircleOutlined,
   CloseCircleOutlined,
   ExclamationCircleOutlined,
+  HistoryOutlined,
   SendOutlined,
   SyncOutlined,
 } from '@ant-design/icons';
@@ -28,7 +31,7 @@ import { formatSecondsToHoursMinutes } from '@/utils/time-format.utils';
 
 interface TaskTimeApprovalStatusCardProps {
   taskId: string;
-  onStatusChange?: () => void;
+  onStatusChange?: (latestStatus?: TaskTimeApprovalStatus | null) => void;
 }
 
 export const TaskTimeApprovalStatusCard: React.FC<TaskTimeApprovalStatusCardProps> = ({
@@ -38,6 +41,7 @@ export const TaskTimeApprovalStatusCard: React.FC<TaskTimeApprovalStatusCardProp
   const [approvals, setApprovals] = useState<ITaskTimeApproval[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [submitting, setSubmitting] = useState<boolean>(false);
+  const [historyModalVisible, setHistoryModalVisible] = useState<boolean>(false);
 
   const currentUser = useAppSelector(state => state.userReducer);
 
@@ -48,6 +52,10 @@ export const TaskTimeApprovalStatusCard: React.FC<TaskTimeApprovalStatusCardProp
       const res = await timeApprovalsApiService.getByTask(taskId);
       if (res.done && Array.isArray(res.body)) {
         setApprovals(res.body);
+        if (onStatusChange) {
+          const status = res.body.length > 0 ? res.body[0].status : null;
+          onStatusChange(status);
+        }
       }
     } catch (error) {
       console.error('Error fetching task approvals:', error);
@@ -69,7 +77,6 @@ export const TaskTimeApprovalStatusCard: React.FC<TaskTimeApprovalStatusCardProp
       if (res.done) {
         message.success(res.message || 'Time submitted for manager approval.');
         await fetchApprovals();
-        if (onStatusChange) onStatusChange();
       } else {
         message.error(res.message || 'Failed to submit time.');
       }
@@ -87,7 +94,6 @@ export const TaskTimeApprovalStatusCard: React.FC<TaskTimeApprovalStatusCardProp
       if (res.done) {
         message.success(res.message || 'Resubmitted successfully.');
         await fetchApprovals();
-        if (onStatusChange) onStatusChange();
       } else {
         message.error(res.message || 'Failed to resubmit.');
       }
@@ -163,109 +169,196 @@ export const TaskTimeApprovalStatusCard: React.FC<TaskTimeApprovalStatusCardProp
   }
 
   return (
-    <Card
-      size="small"
-      style={{
-        marginBottom: 12,
-        borderColor:
-          latestApproval.status === TaskTimeApprovalStatus.APPROVED
-            ? '#b7eb8f'
-            : latestApproval.status === TaskTimeApprovalStatus.REJECTED
-            ? '#ffccc7'
-            : latestApproval.status === TaskTimeApprovalStatus.ADJUSTED
-            ? '#91caff'
-            : '#ffe58f',
-      }}
-    >
-      <Flex vertical gap={6}>
-        <Flex justify="space-between" align="center">
-          <Space direction="horizontal" size={6}>
-            <Typography.Text strong style={{ fontSize: 13 }}>
-              Time Approval:
-            </Typography.Text>
-            {renderStatusBadge(latestApproval.status)}
-            <Typography.Text type="secondary" style={{ fontSize: 11 }}>
-              (v{latestApproval.version || 1})
-            </Typography.Text>
-          </Space>
+    <>
+      <Card
+        size="small"
+        style={{
+          marginBottom: 12,
+          borderColor:
+            latestApproval.status === TaskTimeApprovalStatus.APPROVED
+              ? '#b7eb8f'
+              : latestApproval.status === TaskTimeApprovalStatus.REJECTED
+              ? '#ffccc7'
+              : latestApproval.status === TaskTimeApprovalStatus.ADJUSTED
+              ? '#91caff'
+              : '#ffe58f',
+        }}
+      >
+        <Flex vertical gap={6}>
+          <Flex justify="space-between" align="center">
+            <Space direction="horizontal" size={6}>
+              <Typography.Text strong style={{ fontSize: 13 }}>
+                Time Approval:
+              </Typography.Text>
+              {renderStatusBadge(latestApproval.status)}
+              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                (v{latestApproval.version || 1})
+              </Typography.Text>
+            </Space>
 
-          {latestApproval.status === TaskTimeApprovalStatus.REJECTED && (
-            <Popconfirm
-              title="Resubmit for Approval"
-              description="Resubmit your time logs after making required updates?"
-              okText="Resubmit"
-              cancelText="Cancel"
-              onConfirm={() => handleResubmit(latestApproval.id)}
+            <Space size={8}>
+              {approvals.length > 1 && (
+                <Button
+                  type="link"
+                  size="small"
+                  icon={<HistoryOutlined />}
+                  onClick={() => setHistoryModalVisible(true)}
+                  style={{ padding: 0, fontSize: 12 }}
+                >
+                  History ({approvals.length})
+                </Button>
+              )}
+
+              {latestApproval.status === TaskTimeApprovalStatus.REJECTED && (
+                <Popconfirm
+                  title="Resubmit for Approval"
+                  description="Resubmit your time logs after making required updates?"
+                  okText="Resubmit"
+                  cancelText="Cancel"
+                  onConfirm={() => handleResubmit(latestApproval.id)}
+                >
+                  <Button
+                    type="primary"
+                    size="small"
+                    danger
+                    icon={<SyncOutlined />}
+                    loading={submitting}
+                  >
+                    Resubmit
+                  </Button>
+                </Popconfirm>
+              )}
+            </Space>
+          </Flex>
+
+          <Flex justify="space-between" align="center" style={{ fontSize: 12 }}>
+            <Typography.Text type="secondary">
+              Recorded: <Typography.Text strong>{formatSecondsToHoursMinutes(latestApproval.recorded_duration || 0)}</Typography.Text>
+            </Typography.Text>
+            {(latestApproval.status === TaskTimeApprovalStatus.APPROVED ||
+              latestApproval.status === TaskTimeApprovalStatus.ADJUSTED) && (
+              <Typography.Text type="secondary">
+                Approved: <Typography.Text strong style={{ color: '#52c41a' }}>{formatSecondsToHoursMinutes(latestApproval.approved_duration || 0)}</Typography.Text>
+              </Typography.Text>
+            )}
+            {latestApproval.approver_name && (
+              <Typography.Text type="secondary">
+                Reviewer: <Typography.Text strong>{latestApproval.approver_name}</Typography.Text>
+              </Typography.Text>
+            )}
+          </Flex>
+
+          {latestApproval.status === TaskTimeApprovalStatus.ADJUSTED && latestApproval.adjustment_reason && (
+            <Alert
+              type="info"
+              showIcon
+              message={
+                <Typography.Text style={{ fontSize: 12 }}>
+                  <Typography.Text strong>Adjustment Reason: </Typography.Text>
+                  {latestApproval.adjustment_reason}
+                </Typography.Text>
+              }
+              style={{ padding: '4px 8px', marginTop: 4 }}
+            />
+          )}
+
+          {latestApproval.status === TaskTimeApprovalStatus.REJECTED && latestApproval.rejection_reason && (
+            <Alert
+              type="error"
+              showIcon
+              message={
+                <Typography.Text style={{ fontSize: 12 }}>
+                  <Typography.Text strong>Rejection Reason: </Typography.Text>
+                  {latestApproval.rejection_reason}
+                </Typography.Text>
+              }
+              style={{ padding: '4px 8px', marginTop: 4 }}
+            />
+          )}
+
+          {latestApproval.manager_comment && (
+            <Typography.Paragraph
+              italic
+              type="secondary"
+              style={{ margin: 0, fontSize: 11 }}
             >
-              <Button
-                type="primary"
-                size="small"
-                danger
-                icon={<SyncOutlined />}
-                loading={submitting}
-              >
-                Resubmit
-              </Button>
-            </Popconfirm>
+              Manager Comment: "{latestApproval.manager_comment}"
+            </Typography.Paragraph>
           )}
         </Flex>
+      </Card>
 
-        <Flex justify="space-between" align="center" style={{ fontSize: 12 }}>
-          <Typography.Text type="secondary">
-            Recorded: <Typography.Text strong>{formatSecondsToHoursMinutes(latestApproval.recorded_duration || 0)}</Typography.Text>
-          </Typography.Text>
-          {(latestApproval.status === TaskTimeApprovalStatus.APPROVED ||
-            latestApproval.status === TaskTimeApprovalStatus.ADJUSTED) && (
-            <Typography.Text type="secondary">
-              Approved: <Typography.Text strong style={{ color: '#52c41a' }}>{formatSecondsToHoursMinutes(latestApproval.approved_duration || 0)}</Typography.Text>
-            </Typography.Text>
-          )}
-          {latestApproval.approver_name && (
-            <Typography.Text type="secondary">
-              Reviewer: <Typography.Text strong>{latestApproval.approver_name}</Typography.Text>
-            </Typography.Text>
-          )}
-        </Flex>
+      {/* Approval History Modal */}
+      <Modal
+        title="Time Approval History"
+        open={historyModalVisible}
+        onCancel={() => setHistoryModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setHistoryModalVisible(false)}>
+            Close
+          </Button>,
+        ]}
+        width={560}
+      >
+        <Typography.Paragraph type="secondary" style={{ marginBottom: 16 }}>
+          Historical record of all time submissions and manager decisions for this task.
+        </Typography.Paragraph>
 
-        {latestApproval.status === TaskTimeApprovalStatus.ADJUSTED && latestApproval.adjustment_reason && (
-          <Alert
-            type="info"
-            showIcon
-            message={
-              <Typography.Text style={{ fontSize: 12 }}>
-                <Typography.Text strong>Adjustment Reason: </Typography.Text>
-                {latestApproval.adjustment_reason}
-              </Typography.Text>
-            }
-            style={{ padding: '4px 8px', marginTop: 4 }}
-          />
-        )}
+        <Timeline
+          items={approvals.map((app, index) => ({
+            color:
+              app.status === TaskTimeApprovalStatus.APPROVED
+                ? 'green'
+                : app.status === TaskTimeApprovalStatus.ADJUSTED
+                ? 'blue'
+                : app.status === TaskTimeApprovalStatus.REJECTED
+                ? 'red'
+                : 'orange',
+            children: (
+              <Card size="small" style={{ marginBottom: 8, background: '#fafafa' }}>
+                <Flex justify="space-between" align="center" style={{ marginBottom: 4 }}>
+                  <Space size={6}>
+                    <Typography.Text strong>Submission #{app.submission_number || (approvals.length - index)} (v{app.version || 1})</Typography.Text>
+                    {renderStatusBadge(app.status)}
+                  </Space>
+                  <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                    {new Date(app.submitted_at).toLocaleDateString()}
+                  </Typography.Text>
+                </Flex>
 
-        {latestApproval.status === TaskTimeApprovalStatus.REJECTED && latestApproval.rejection_reason && (
-          <Alert
-            type="error"
-            showIcon
-            message={
-              <Typography.Text style={{ fontSize: 12 }}>
-                <Typography.Text strong>Rejection Reason: </Typography.Text>
-                {latestApproval.rejection_reason}
-              </Typography.Text>
-            }
-            style={{ padding: '4px 8px', marginTop: 4 }}
-          />
-        )}
+                <Flex justify="space-between" style={{ fontSize: 12, marginBottom: 4 }}>
+                  <span>Recorded: <strong>{formatSecondsToHoursMinutes(app.recorded_duration || 0)}</strong></span>
+                  {(app.status === TaskTimeApprovalStatus.APPROVED || app.status === TaskTimeApprovalStatus.ADJUSTED) && (
+                    <span style={{ color: '#52c41a' }}>Approved: <strong>{formatSecondsToHoursMinutes(app.approved_duration || 0)}</strong></span>
+                  )}
+                  {app.approver_name && (
+                    <span style={{ color: '#8c8c8c' }}>Reviewed by: <strong>{app.approver_name}</strong></span>
+                  )}
+                </Flex>
 
-        {latestApproval.manager_comment && (
-          <Typography.Paragraph
-            italic
-            type="secondary"
-            style={{ margin: 0, fontSize: 11 }}
-          >
-            Manager Comment: "{latestApproval.manager_comment}"
-          </Typography.Paragraph>
-        )}
-      </Flex>
-    </Card>
+                {app.adjustment_reason && (
+                  <Typography.Text type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                    <strong>Adjustment:</strong> {app.adjustment_reason}
+                  </Typography.Text>
+                )}
+
+                {app.rejection_reason && (
+                  <Typography.Text type="danger" style={{ fontSize: 11, display: 'block' }}>
+                    <strong>Rejection:</strong> {app.rejection_reason}
+                  </Typography.Text>
+                )}
+
+                {app.manager_comment && (
+                  <Typography.Text italic type="secondary" style={{ fontSize: 11, display: 'block' }}>
+                    <strong>Comment:</strong> "{app.manager_comment}"
+                  </Typography.Text>
+                )}
+              </Card>
+            ),
+          }))}
+        />
+      </Modal>
+    </>
   );
 };
 

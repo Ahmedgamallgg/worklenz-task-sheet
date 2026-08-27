@@ -6,13 +6,14 @@ import { ITaskLogViewModel } from '@/types/tasks/task-log-view.types';
 type TimeLogListProps = {
   timeLoggedList: ITaskLogViewModel[];
   onRefresh?: () => void;
+  isLocked?: boolean;
 };
 
-const TimeLogList = ({ timeLoggedList, onRefresh }: TimeLogListProps) => {
+const TimeLogList = ({ timeLoggedList, onRefresh, isLocked = false }: TimeLogListProps) => {
   return (
     <Flex vertical gap={6}>
       {timeLoggedList.map(log => (
-        <TimeLogItem key={log.id} log={log} onDelete={onRefresh} />
+        <TimeLogItem key={log.id} log={log} onDelete={onRefresh} isLocked={isLocked} />
       ))}
     </Flex>
   );

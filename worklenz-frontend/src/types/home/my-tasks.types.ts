@@ -10,4 +10,5 @@ export interface IMyTask extends IProjectTask {
   status_color?: string;
   project_statuses?: ITaskStatusViewModel[];
   parent_task_name?: string;
+  latest_time_approval_status?: string;
 }

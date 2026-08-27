@@ -26,6 +26,7 @@ import { ITaskTimeApproval, TaskTimeApprovalStatus } from '@/types/time-approval
 import ApprovalsTable from '@/components/approvals/ApprovalsTable';
 import ApprovalActionModal from '@/components/approvals/ApprovalActionModal';
 import ApprovalDetailDrawer from '@/components/approvals/ApprovalDetailDrawer';
+import MyTimesheetView from '@/components/timesheets/MyTimesheetView';
 import { useAuthService } from '@/hooks/useAuth';
 
 export const ApprovalsPage: React.FC = () => {
@@ -43,6 +44,7 @@ export const ApprovalsPage: React.FC = () => {
   const currentSession = useAuthService().getCurrentSession();
 
   const fetchApprovals = useCallback(async () => {
+    if (activeTab === 'timesheet') return;
     try {
       setLoading(true);
       let res;
@@ -131,82 +133,91 @@ export const ApprovalsPage: React.FC = () => {
         </div>
       </Flex>
 
-      {/* KPI Stats */}
-      <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
-        <Col xs={24} sm={12} md={6}>
-          <Card bordered={false} style={{ borderRadius: 8 }}>
-            <Statistic
-              title="Pending Approvals"
-              value={pendingCount}
-              prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
-              valueStyle={{ color: pendingCount > 0 ? '#fa8c16' : undefined, fontWeight: 700 }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card bordered={false} style={{ borderRadius: 8 }}>
-            <Statistic
-              title="Pending Duration"
-              value={`${(pendingTotalMinutes / 60).toFixed(1)} hrs`}
-              prefix={<ClockCircleOutlined style={{ color: '#1677ff' }} />}
-              valueStyle={{ fontWeight: 700 }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card bordered={false} style={{ borderRadius: 8 }}>
-            <Statistic
-              title="Approved Time"
-              value={`${(approvedTotalMinutes / 60).toFixed(1)} hrs`}
-              prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a', fontWeight: 700 }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={12} md={6}>
-          <Card bordered={false} style={{ borderRadius: 8 }}>
-            <Statistic
-              title="Adjusted Submissions"
-              value={adjustedCount}
-              prefix={<ExclamationCircleOutlined style={{ color: '#722ed1' }} />}
-              valueStyle={{ fontWeight: 700 }}
-            />
-          </Card>
-        </Col>
-      </Row>
-
       {/* Main Table Card */}
-      <Card bordered={false} style={{ borderRadius: 8 }}>
-        <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
-          <Tabs
-            activeKey={activeTab}
-            onChange={setActiveTab}
-            items={[
-              { key: 'pending', label: `Pending Approvals (${pendingCount})` },
-              { key: 'all', label: 'All Team Submissions' },
-              { key: 'my', label: 'My Submissions' },
-            ]}
-          />
-
-          <Space size={12}>
-            <Input
-              placeholder="Search employee, task, project..."
-              prefix={<SearchOutlined />}
-              allowClear
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              style={{ width: 280 }}
-            />
-          </Space>
-        </Flex>
-
-        <ApprovalsTable
-          data={filteredApprovals}
-          loading={loading}
-          onActionClick={handleOpenActionModal}
-          onViewDetail={handleOpenDrawer}
-          onDirectApprove={handleDirectApprove}
+      <Card bordered={false} style={{ borderRadius: 8, marginBottom: 20 }}>
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={[
+            { key: 'pending', label: `Pending Approvals (${pendingCount})` },
+            { key: 'all', label: 'All Team Submissions' },
+            { key: 'my', label: 'My Submissions' },
+            { key: 'timesheet', label: 'My Timesheet' },
+          ]}
         />
+
+        {activeTab !== 'timesheet' && (
+          <>
+            {/* KPI Stats */}
+            <Row gutter={[16, 16]} style={{ marginBottom: 20, marginTop: 12 }}>
+              <Col xs={24} sm={12} md={6}>
+                <Card bordered={true} style={{ borderRadius: 8 }}>
+                  <Statistic
+                    title="Pending Approvals"
+                    value={pendingCount}
+                    prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
+                    valueStyle={{ color: pendingCount > 0 ? '#fa8c16' : undefined, fontWeight: 700 }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <Card bordered={true} style={{ borderRadius: 8 }}>
+                  <Statistic
+                    title="Pending Duration"
+                    value={`${(pendingTotalMinutes / 60).toFixed(1)} hrs`}
+                    prefix={<ClockCircleOutlined style={{ color: '#1677ff' }} />}
+                    valueStyle={{ fontWeight: 700 }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <Card bordered={true} style={{ borderRadius: 8 }}>
+                  <Statistic
+                    title="Approved Time"
+                    value={`${(approvedTotalMinutes / 60).toFixed(1)} hrs`}
+                    prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
+                    valueStyle={{ color: '#52c41a', fontWeight: 700 }}
+                  />
+                </Card>
+              </Col>
+              <Col xs={24} sm={12} md={6}>
+                <Card bordered={true} style={{ borderRadius: 8 }}>
+                  <Statistic
+                    title="Adjusted Submissions"
+                    value={adjustedCount}
+                    prefix={<ExclamationCircleOutlined style={{ color: '#722ed1' }} />}
+                    valueStyle={{ fontWeight: 700 }}
+                  />
+                </Card>
+              </Col>
+            </Row>
+
+            <Flex justify="flex-end" align="center" style={{ marginBottom: 16 }}>
+              <Input
+                placeholder="Search employee, task, project..."
+                prefix={<SearchOutlined />}
+                allowClear
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                style={{ width: 280 }}
+              />
+            </Flex>
+
+            <ApprovalsTable
+              data={filteredApprovals}
+              loading={loading}
+              onActionClick={handleOpenActionModal}
+              onViewDetail={handleOpenDrawer}
+              onDirectApprove={handleDirectApprove}
+            />
+          </>
+        )}
+
+        {activeTab === 'timesheet' && (
+          <div style={{ marginTop: 16 }}>
+            <MyTimesheetView />
+          </div>
+        )}
       </Card>
 
       {/* Action Modal */}

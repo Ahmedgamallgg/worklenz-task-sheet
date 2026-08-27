@@ -10,6 +10,7 @@ import TaskTimeApprovalStatusCard from './TaskTimeApprovalStatusCard';
 import TimeLogList from './time-log-list';
 import { taskTimeLogsApiService } from '@/api/tasks/task-time-logs.api.service';
 import { ITaskLogViewModel } from '@/types/tasks/task-log-view.types';
+import { TaskTimeApprovalStatus } from '@/types/time-approval.types';
 import TaskTimer from '@/components/taskListCommon/task-timer/task-timer';
 import { useTaskTimerWithConflictCheck } from '@/hooks/useTaskTimerWithConflictCheck';
 import logger from '@/utils/errorLogger';
@@ -29,6 +30,7 @@ const TaskDrawerTimeLog = ({ t, refreshTrigger = 0 }: TaskDrawerTimeLogProps) =>
   const [totalTimeText, setTotalTimeText] = useState<string>('0m 0s');
   const [loading, setLoading] = useState<boolean>(false);
   const [isHistoryPopoverOpen, setIsHistoryPopoverOpen] = useState(false);
+  const [approvalStatus, setApprovalStatus] = useState<TaskTimeApprovalStatus | null>(null);
 
   const { selectedTaskId, taskFormViewModel } = useAppSelector(state => state.taskDrawerReducer);
   const dispatch = useAppDispatch();
@@ -42,6 +44,11 @@ const TaskDrawerTimeLog = ({ t, refreshTrigger = 0 }: TaskDrawerTimeLogProps) =>
     selectedTaskId || '',
     taskFormViewModel?.task?.timer_start_time || null
   );
+
+  const isTimeLocked =
+    approvalStatus === TaskTimeApprovalStatus.PENDING ||
+    approvalStatus === TaskTimeApprovalStatus.APPROVED ||
+    approvalStatus === TaskTimeApprovalStatus.ADJUSTED;
 
   const formatTimeComponents = (hours: number, minutes: number, seconds: number): string => {
     const parts = [];
@@ -132,7 +139,11 @@ const TaskDrawerTimeLog = ({ t, refreshTrigger = 0 }: TaskDrawerTimeLogProps) =>
 
     return (
       <Flex vertical gap={8}>
-        <TimeLogList timeLoggedList={visibleLogs} onRefresh={fetchTimeLoggedList} />
+        <TimeLogList
+          timeLoggedList={visibleLogs}
+          onRefresh={fetchTimeLoggedList}
+          isLocked={isTimeLocked}
+        />
         {lockedCount > 0 && (
           <Flex align="center" justify="space-between">
             <Typography.Text type="secondary">
@@ -213,7 +224,10 @@ const TaskDrawerTimeLog = ({ t, refreshTrigger = 0 }: TaskDrawerTimeLogProps) =>
         {selectedTaskId && (
           <TaskTimeApprovalStatusCard
             taskId={selectedTaskId}
-            onStatusChange={fetchTimeLoggedList}
+            onStatusChange={(status) => {
+              setApprovalStatus(status || null);
+              fetchTimeLoggedList();
+            }}
           />
         )}
         {renderTimeLogContent()}

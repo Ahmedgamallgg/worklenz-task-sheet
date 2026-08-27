@@ -21,6 +21,8 @@ import { fetchProjects } from '@/features/home-page/home-page.slice';
 import { createPortal } from 'react-dom';
 import UserActivityFeed from './user-activity-feed/user-activity-feed';
 
+import EmployeeApprovalWidget from './approval-widget/EmployeeApprovalWidget';
+
 const DESKTOP_MIN_WIDTH = 1024;
 const TASK_LIST_MIN_WIDTH = 500;
 const SIDEBAR_MAX_WIDTH = 400;
@@ -116,7 +118,8 @@ const HomePage = memo(() => {
 
         <Col xs={24} lg={8}>
           <Flex vertical gap={24}>
-            {/* <TaskCompletionCard /> */}
+            <EmployeeApprovalWidget />
+
             <TodoList />
 
             <UserActivityFeed />

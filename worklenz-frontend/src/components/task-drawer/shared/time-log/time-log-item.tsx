@@ -1,5 +1,6 @@
 import React from 'react';
-import { Button, Divider, Flex, Popconfirm, Typography, Space } from '@/shared/antd-imports';
+import { Button, Divider, Flex, Popconfirm, Typography, Space, Tooltip, Tag } from '@/shared/antd-imports';
+import { LockOutlined } from '@ant-design/icons';
 import { colors } from '@/styles/colors';
 import { ITaskLogViewModel } from '@/types/tasks/task-log-view.types';
 import SingleAvatar from '@/components/common/single-avatar/single-avatar';
@@ -16,9 +17,10 @@ import { useAuthService } from '@/hooks/useAuth';
 type TimeLogItemProps = {
   log: ITaskLogViewModel;
   onDelete?: () => void;
+  isLocked?: boolean;
 };
 
-const TimeLogItem = ({ log, onDelete }: TimeLogItemProps) => {
+const TimeLogItem = ({ log, onDelete, isLocked = false }: TimeLogItemProps) => {
   const {
     user_name,
     avatar_url,
@@ -64,6 +66,16 @@ const TimeLogItem = ({ log, onDelete }: TimeLogItemProps) => {
   };
 
   const renderActionButtons = () => {
+    if (isLocked) {
+      return (
+        <Tooltip title="This time entry is locked because it has been submitted for manager approval or approved.">
+          <Tag icon={<LockOutlined />} color="default" style={{ margin: 0 }}>
+            Locked
+          </Tag>
+        </Tooltip>
+      );
+    }
+
     if (!canDelete) return null;
 
     return (
