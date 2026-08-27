@@ -5,13 +5,14 @@ interface SingleAvatarProps {
   avatarUrl?: string;
   name?: string;
   email?: string;
+  size?: number | 'large' | 'small' | 'default';
 }
 
-const SingleAvatar: React.FC<SingleAvatarProps> = ({ avatarUrl, name, email = null }) => {
+const SingleAvatar: React.FC<SingleAvatarProps> = ({ avatarUrl, name, email = null, size = 28 }) => {
   return (
     <Avatar
       src={avatarUrl}
-      size={28}
+      size={size}
       style={{
         backgroundColor: avatarUrl ? 'transparent' : AvatarNamesMap[name?.charAt(0) || ''],
         border: avatarUrl ? 'none' : '1px solid #d9d9d9',

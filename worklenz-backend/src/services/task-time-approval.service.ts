@@ -1405,5 +1405,320 @@ export class TaskTimeApprovalService {
       members,
     };
   }
+
+  /**
+   * Get Manager and Employee Dashboard statistics (MY WORK & MY TEAM)
+   */
+  public static async getDashboardStats(params: {
+    userId: string;
+    teamId: string;
+    isAdmin?: boolean;
+  }): Promise<{
+    my_work: {
+      tasks_count: number;
+      tasks_today_count: number;
+      tasks_completed_today_count: number;
+      recorded_today_seconds: number;
+      approved_today_seconds: number;
+      pending_submissions_count: number;
+      pending_submissions_seconds: number;
+      recent_submissions: any[];
+    };
+    my_team: {
+      is_manager: boolean;
+      employees_count: number;
+      tasks_in_progress_count: number;
+      pending_approvals_count: number;
+      pending_time_seconds: number;
+      overdue_tasks_count: number;
+      recorded_today_seconds: number;
+      approved_today_seconds: number;
+      team_members_summary: any[];
+      recent_pending_approvals: any[];
+    };
+  }> {
+    const { userId, teamId, isAdmin } = params;
+
+    // 1. Get current member info
+    const currentMemberRes = await db.query(
+      `SELECT tm.id, tm.role_id, r.name AS role_name
+       FROM team_members tm
+       LEFT JOIN roles r ON r.id = tm.role_id
+       WHERE tm.user_id = $1 AND tm.team_id = $2 AND tm.active = TRUE;`,
+      [userId, teamId]
+    );
+
+    const currentMember = currentMemberRes.rows[0];
+    const currentMemberId = currentMember?.id;
+    const isTeamLead = currentMember?.role_name?.toLowerCase().includes("team lead") || currentMember?.role_name?.toLowerCase().includes("lead");
+
+    // 2. MY WORK STATS
+    let myTasksCount = 0;
+    let myTasksTodayCount = 0;
+    let myTasksCompletedToday = 0;
+
+    if (currentMemberId) {
+      const activeTasksRes = await db.query(
+        `SELECT COUNT(DISTINCT t.id) AS active_tasks_count,
+                COUNT(DISTINCT CASE WHEN t.end_date::DATE = CURRENT_DATE::DATE THEN t.id END) AS today_tasks_count
+         FROM tasks t
+         JOIN tasks_assignees ta ON ta.task_id = t.id AND ta.team_member_id = $1
+         JOIN projects p ON p.id = t.project_id AND p.team_id = $2
+         WHERE t.archived IS FALSE
+           AND t.status_id NOT IN (
+             SELECT id FROM task_statuses WHERE category_id IN (
+               SELECT id FROM sys_task_status_categories WHERE is_done IS TRUE
+             )
+           );`,
+        [currentMemberId, teamId]
+      );
+      myTasksCount = parseInt(activeTasksRes.rows[0]?.active_tasks_count, 10) || 0;
+      myTasksTodayCount = parseInt(activeTasksRes.rows[0]?.today_tasks_count, 10) || 0;
+
+      const completedTodayRes = await db.query(
+        `SELECT COUNT(DISTINCT t.id) AS completed_today_count
+         FROM tasks t
+         JOIN tasks_assignees ta ON ta.task_id = t.id AND ta.team_member_id = $1
+         JOIN projects p ON p.id = t.project_id AND p.team_id = $2
+         WHERE t.archived IS FALSE
+           AND t.updated_at::DATE = CURRENT_DATE::DATE
+           AND t.status_id IN (
+             SELECT id FROM task_statuses WHERE category_id IN (
+               SELECT id FROM sys_task_status_categories WHERE is_done IS TRUE
+             )
+           );`,
+        [currentMemberId, teamId]
+      );
+      myTasksCompletedToday = parseInt(completedTodayRes.rows[0]?.completed_today_count, 10) || 0;
+    }
+
+    // Recorded today by user
+    const recordedTodayRes = await db.query(
+      `SELECT COALESCE(SUM(time_spent), 0) AS recorded_seconds
+       FROM task_work_log
+       WHERE user_id = $1 AND team_id = $2 AND created_at::DATE = CURRENT_DATE::DATE;`,
+      [userId, teamId]
+    );
+    const recordedTodaySeconds = parseInt(recordedTodayRes.rows[0]?.recorded_seconds, 10) || 0;
+
+    // Approved today for user
+    let approvedTodaySeconds = 0;
+    let pendingSubmissionsCount = 0;
+    let pendingSubmissionsSeconds = 0;
+    let recentSubmissions: any[] = [];
+
+    if (currentMemberId) {
+      const approvalStatsRes = await db.query(
+        `SELECT
+           COALESCE(SUM(CASE WHEN status IN ('APPROVED', 'ADJUSTED') AND reviewed_at::DATE = CURRENT_DATE::DATE THEN approved_duration ELSE 0 END), 0) AS approved_today_seconds,
+           COUNT(CASE WHEN status = 'PENDING' THEN 1 END) AS pending_count,
+           COALESCE(SUM(CASE WHEN status = 'PENDING' THEN recorded_duration ELSE 0 END), 0) AS pending_seconds
+         FROM task_time_approvals
+         WHERE team_member_id = $1 AND team_id = $2;`,
+        [currentMemberId, teamId]
+      );
+
+      approvedTodaySeconds = parseInt(approvalStatsRes.rows[0]?.approved_today_seconds, 10) || 0;
+      pendingSubmissionsCount = parseInt(approvalStatsRes.rows[0]?.pending_count, 10) || 0;
+      pendingSubmissionsSeconds = parseInt(approvalStatsRes.rows[0]?.pending_seconds, 10) || 0;
+
+      const mySubmissions = await this.getMySubmissions(userId, teamId);
+      recentSubmissions = mySubmissions.slice(0, 5);
+    }
+
+    // 3. MY TEAM STATS
+    let isManager = !!isAdmin || !!isTeamLead;
+    let subordinateMemberIds: string[] = [];
+
+    if (isAdmin) {
+      const allMembersRes = await db.query(
+        `SELECT id FROM team_members WHERE team_id = $1 AND active = TRUE AND id != COALESCE($2, '00000000-0000-0000-0000-000000000000'::UUID);`,
+        [teamId, currentMemberId]
+      );
+      subordinateMemberIds = allMembersRes.rows.map((r: any) => r.id);
+      if (subordinateMemberIds.length > 0) {
+        isManager = true;
+      }
+    } else if (currentMemberId) {
+      const subMembersRes = await db.query(
+        `SELECT tm.id
+         FROM team_members tm
+         WHERE tm.team_id = $1 AND tm.active = TRUE
+           AND (tm.reports_to_member_id = $2 OR tm.id IN (
+             SELECT managed_member_id FROM team_lead_managed_members WHERE manager_id = $2
+           ));`,
+        [teamId, currentMemberId]
+      );
+      subordinateMemberIds = subMembersRes.rows.map((r: any) => r.id);
+      if (subordinateMemberIds.length > 0) {
+        isManager = true;
+      }
+    }
+
+    let teamEmployeesCount = subordinateMemberIds.length;
+    let teamTasksInProgressCount = 0;
+    let teamPendingApprovalsCount = 0;
+    let teamPendingTimeSeconds = 0;
+    let teamOverdueTasksCount = 0;
+    let teamRecordedTodaySeconds = 0;
+    let teamApprovedTodaySeconds = 0;
+    let teamMembersSummary: any[] = [];
+    let recentPendingApprovals: any[] = [];
+
+    if (isManager && subordinateMemberIds.length > 0) {
+      // Team tasks in progress & overdue
+      const teamTasksRes = await db.query(
+        `SELECT COUNT(DISTINCT t.id) AS in_progress_count,
+                COUNT(DISTINCT CASE WHEN t.end_date::DATE < CURRENT_DATE::DATE THEN t.id END) AS overdue_count
+         FROM tasks t
+         JOIN tasks_assignees ta ON ta.task_id = t.id AND ta.team_member_id = ANY($1::UUID[])
+         JOIN projects p ON p.id = t.project_id AND p.team_id = $2
+         WHERE t.archived IS FALSE
+           AND t.status_id NOT IN (
+             SELECT id FROM task_statuses WHERE category_id IN (
+               SELECT id FROM sys_task_status_categories WHERE is_done IS TRUE
+             )
+           );`,
+        [subordinateMemberIds, teamId]
+      );
+
+      teamTasksInProgressCount = parseInt(teamTasksRes.rows[0]?.in_progress_count, 10) || 0;
+      teamOverdueTasksCount = parseInt(teamTasksRes.rows[0]?.overdue_count, 10) || 0;
+
+      // Team pending approvals
+      let pendingQuery = `
+        SELECT COUNT(*) AS pending_count,
+               COALESCE(SUM(recorded_duration), 0) AS pending_seconds
+        FROM task_time_approvals tta
+        WHERE tta.team_id = $1 AND tta.status = 'PENDING'
+      `;
+      const pendingQueryParams: any[] = [teamId];
+
+      if (!isAdmin && currentMemberId) {
+        pendingQuery += ` AND (tta.approver_member_id = $2 OR tta.team_member_id = ANY($3::UUID[]))`;
+        pendingQueryParams.push(currentMemberId, subordinateMemberIds);
+      } else {
+        pendingQuery += ` AND tta.team_member_id = ANY($2::UUID[])`;
+        pendingQueryParams.push(subordinateMemberIds);
+      }
+
+      const teamPendingRes = await db.query(pendingQuery, pendingQueryParams);
+      teamPendingApprovalsCount = parseInt(teamPendingRes.rows[0]?.pending_count, 10) || 0;
+      teamPendingTimeSeconds = parseInt(teamPendingRes.rows[0]?.pending_seconds, 10) || 0;
+
+      // Team recorded today
+      const teamRecordedRes = await db.query(
+        `SELECT COALESCE(SUM(twl.time_spent), 0) AS recorded_today_seconds
+         FROM task_work_log twl
+         JOIN team_members tm ON tm.user_id = twl.user_id AND tm.team_id = $1
+         WHERE tm.id = ANY($2::UUID[])
+           AND twl.created_at::DATE = CURRENT_DATE::DATE;`,
+        [teamId, subordinateMemberIds]
+      );
+      teamRecordedTodaySeconds = parseInt(teamRecordedRes.rows[0]?.recorded_today_seconds, 10) || 0;
+
+      // Team approved today
+      const teamApprovedRes = await db.query(
+        `SELECT COALESCE(SUM(tta.approved_duration), 0) AS approved_today_seconds
+         FROM task_time_approvals tta
+         WHERE tta.team_id = $1
+           AND tta.team_member_id = ANY($2::UUID[])
+           AND tta.status IN ('APPROVED', 'ADJUSTED')
+           AND tta.reviewed_at::DATE = CURRENT_DATE::DATE;`,
+        [teamId, subordinateMemberIds]
+      );
+      teamApprovedTodaySeconds = parseInt(teamApprovedRes.rows[0]?.approved_today_seconds, 10) || 0;
+
+      // Team members individual breakdown summary
+      const summaryRes = await db.query(
+        `SELECT tm.id AS team_member_id,
+                u.id AS user_id,
+                u.name AS member_name,
+                u.email AS member_email,
+                u.avatar_url AS member_avatar_url,
+                r.name AS role_name,
+                (SELECT COUNT(DISTINCT ta.task_id)
+                 FROM tasks_assignees ta
+                 JOIN tasks t ON t.id = ta.task_id
+                 WHERE ta.team_member_id = tm.id
+                   AND t.archived IS FALSE
+                   AND t.status_id NOT IN (
+                     SELECT id FROM task_statuses WHERE category_id IN (
+                       SELECT id FROM sys_task_status_categories WHERE is_done IS TRUE
+                     )
+                   )
+                ) AS tasks_in_progress,
+                COALESCE((
+                  SELECT SUM(twl.time_spent)
+                  FROM task_work_log twl
+                  WHERE twl.user_id = u.id AND twl.team_id = $1 AND twl.created_at::DATE = CURRENT_DATE::DATE
+                ), 0) AS recorded_today_seconds,
+                COALESCE((
+                  SELECT SUM(tta.approved_duration)
+                  FROM task_time_approvals tta
+                  WHERE tta.team_member_id = tm.id AND tta.team_id = $1
+                    AND tta.status IN ('APPROVED', 'ADJUSTED')
+                    AND tta.reviewed_at::DATE = CURRENT_DATE::DATE
+                ), 0) AS approved_today_seconds,
+                (SELECT COUNT(*)
+                 FROM task_time_approvals tta
+                 WHERE tta.team_member_id = tm.id AND tta.team_id = $1 AND tta.status = 'PENDING'
+                ) AS pending_count
+         FROM team_members tm
+         JOIN users u ON u.id = tm.user_id
+         LEFT JOIN roles r ON r.id = tm.role_id
+         WHERE tm.id = ANY($2::UUID[])
+         ORDER BY u.name ASC;`,
+        [teamId, subordinateMemberIds]
+      );
+
+      teamMembersSummary = summaryRes.rows.map((row: any) => ({
+        team_member_id: row.team_member_id,
+        user_id: row.user_id,
+        name: row.member_name,
+        email: row.member_email,
+        avatar_url: row.member_avatar_url,
+        role_name: row.role_name,
+        tasks_in_progress: parseInt(row.tasks_in_progress, 10) || 0,
+        recorded_today_seconds: parseInt(row.recorded_today_seconds, 10) || 0,
+        approved_today_seconds: parseInt(row.approved_today_seconds, 10) || 0,
+        pending_count: parseInt(row.pending_count, 10) || 0,
+      }));
+
+      // Top 5 pending approvals for quick review
+      const allPending = await this.getPendingApprovals({
+        teamId,
+        userId,
+        isAdmin,
+        status: TaskTimeApprovalStatus.PENDING,
+      });
+      recentPendingApprovals = allPending.slice(0, 5);
+    }
+
+    return {
+      my_work: {
+        tasks_count: myTasksCount,
+        tasks_today_count: myTasksTodayCount,
+        tasks_completed_today_count: myTasksCompletedToday,
+        recorded_today_seconds: recordedTodaySeconds,
+        approved_today_seconds: approvedTodaySeconds,
+        pending_submissions_count: pendingSubmissionsCount,
+        pending_submissions_seconds: pendingSubmissionsSeconds,
+        recent_submissions: recentSubmissions,
+      },
+      my_team: {
+        is_manager: isManager,
+        employees_count: teamEmployeesCount,
+        tasks_in_progress_count: teamTasksInProgressCount,
+        pending_approvals_count: teamPendingApprovalsCount,
+        pending_time_seconds: teamPendingTimeSeconds,
+        overdue_tasks_count: teamOverdueTasksCount,
+        recorded_today_seconds: teamRecordedTodaySeconds,
+        approved_today_seconds: teamApprovedTodaySeconds,
+        team_members_summary: teamMembersSummary,
+        recent_pending_approvals: recentPendingApprovals,
+      },
+    };
+  }
 }
 

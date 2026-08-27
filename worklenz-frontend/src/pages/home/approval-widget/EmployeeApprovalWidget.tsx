@@ -11,6 +11,7 @@ import {
   Button,
   Space,
   Skeleton,
+  Tooltip,
 } from '@/shared/antd-imports';
 import {
   CheckCircleOutlined,
@@ -18,6 +19,8 @@ import {
   ExclamationCircleOutlined,
   FieldTimeOutlined,
   RightOutlined,
+  FileDoneOutlined,
+  CheckOutlined,
 } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
@@ -37,43 +40,54 @@ export const EmployeeApprovalWidget: React.FC = () => {
   const dispatch = useAppDispatch();
   const [loading, setLoading] = useState<boolean>(false);
   const [submissions, setSubmissions] = useState<ITaskTimeApproval[]>([]);
-  const [todayStats, setTodayStats] = useState<{
-    recorded_seconds: number;
-    approved_seconds: number;
-    pending_count: number;
+  const [stats, setStats] = useState<{
+    tasks_today_count: number;
+    tasks_completed_today_count: number;
+    recorded_today_seconds: number;
+    approved_today_seconds: number;
+    pending_submissions_count: number;
   }>({
-    recorded_seconds: 0,
-    approved_seconds: 0,
-    pending_count: 0,
+    tasks_today_count: 0,
+    tasks_completed_today_count: 0,
+    recorded_today_seconds: 0,
+    approved_today_seconds: 0,
+    pending_submissions_count: 0,
   });
 
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const today = dayjs().format('YYYY-MM-DD');
-
-      // Fetch user's submissions
-      const submissionsRes = await timeApprovalsApiService.getMySubmissions();
-      if (submissionsRes.done && Array.isArray(submissionsRes.body)) {
-        setSubmissions(submissionsRes.body);
-
-        const pending = submissionsRes.body.filter(
-          s => s.status === TaskTimeApprovalStatus.PENDING
-        ).length;
-
-        // Calculate today stats from today's timesheet
-        const timesheetRes = await timeApprovalsApiService.getMyTimesheet({
-          start_date: `${today} 00:00:00`,
-          end_date: `${today} 23:59:59`,
-          view: 'daily',
+      const res = await timeApprovalsApiService.getDashboardStats();
+      if (res.done && res.body?.my_work) {
+        const myWork = res.body.my_work;
+        setStats({
+          tasks_today_count: myWork.tasks_today_count || 0,
+          tasks_completed_today_count: myWork.tasks_completed_today_count || 0,
+          recorded_today_seconds: myWork.recorded_today_seconds || 0,
+          approved_today_seconds: myWork.approved_today_seconds || 0,
+          pending_submissions_count: myWork.pending_submissions_count || 0,
         });
+        setSubmissions(myWork.recent_submissions || []);
+      } else {
+        // Fallback
+        const [subRes, tsRes] = await Promise.all([
+          timeApprovalsApiService.getMySubmissions(),
+          timeApprovalsApiService.getMyTimesheet({
+            start_date: `${dayjs().format('YYYY-MM-DD')} 00:00:00`,
+            end_date: `${dayjs().format('YYYY-MM-DD')} 23:59:59`,
+            view: 'daily',
+          }),
+        ]);
 
-        if (timesheetRes.done && timesheetRes.body) {
-          setTodayStats({
-            recorded_seconds: timesheetRes.body.summary.total_recorded_seconds || 0,
-            approved_seconds: timesheetRes.body.summary.total_approved_seconds || 0,
-            pending_count: pending,
-          });
+        if (subRes.done && Array.isArray(subRes.body)) {
+          setSubmissions(subRes.body.slice(0, 5));
+          const pending = subRes.body.filter(s => s.status === TaskTimeApprovalStatus.PENDING).length;
+          setStats(prev => ({
+            ...prev,
+            pending_submissions_count: pending,
+            recorded_today_seconds: tsRes.body?.summary?.total_recorded_seconds || 0,
+            approved_today_seconds: tsRes.body?.summary?.total_approved_seconds || 0,
+          }));
         }
       }
     } catch (error) {
@@ -117,10 +131,10 @@ export const EmployeeApprovalWidget: React.FC = () => {
       render: (name: string, record: ITaskTimeApproval) => (
         <Button
           type="link"
-          style={{ padding: 0, height: 'auto', fontWeight: 500, textAlign: 'left' }}
+          style={{ padding: 0, height: 'auto', fontWeight: 500, textAlign: 'left', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
           onClick={() => handleOpenTask(record.task_id, record.project_id)}
         >
-          {record.task_no ? `#${record.task_no} ` : ''}{name}
+          {record.task_no ? `#${record.task_no} ` : ''}{name || 'Untitled Task'}
         </Button>
       ),
     },
@@ -128,14 +142,18 @@ export const EmployeeApprovalWidget: React.FC = () => {
       title: 'Recorded',
       dataIndex: 'recorded_duration',
       key: 'recorded_duration',
-      width: '20%',
-      render: (sec: number) => formatSecondsToHoursMinutes(sec || 0),
+      width: '22%',
+      render: (sec: number) => (
+        <span style={{ fontWeight: 500 }}>
+          {formatSecondsToHoursMinutes(sec || 0)}
+        </span>
+      ),
     },
     {
       title: 'Approved',
       dataIndex: 'approved_duration',
       key: 'approved_duration',
-      width: '20%',
+      width: '22%',
       render: (sec: number, record: ITaskTimeApproval) => {
         if (record.status === TaskTimeApprovalStatus.APPROVED || record.status === TaskTimeApprovalStatus.ADJUSTED) {
           return (
@@ -148,10 +166,10 @@ export const EmployeeApprovalWidget: React.FC = () => {
       },
     },
     {
-      title: 'Status',
+      title: 'Approval',
       dataIndex: 'status',
       key: 'status',
-      width: '25%',
+      width: '24%',
       render: (status: TaskTimeApprovalStatus) => renderStatusBadge(status),
     },
   ];
@@ -180,51 +198,75 @@ export const EmployeeApprovalWidget: React.FC = () => {
         <Skeleton active />
       ) : (
         <Flex vertical gap={16}>
-          <Row gutter={[12, 12]}>
-            <Col span={8}>
-              <Card size="small" bordered={true} style={{ background: '#fafafa' }}>
+          {/* Top Row: Tasks Today & Completed */}
+          <Row gutter={[8, 8]}>
+            <Col span={12}>
+              <Card size="small" bordered={true} style={{ background: '#f6ffed', borderColor: '#b7eb8f' }}>
                 <Statistic
-                  title={<span style={{ fontSize: 11 }}>Recorded Today</span>}
-                  value={formatSecondsToHoursMinutes(todayStats.recorded_seconds)}
-                  valueStyle={{ fontSize: 16, fontWeight: 700, color: '#1677ff' }}
+                  title={<span style={{ fontSize: 11, color: '#389e0d' }}>Tasks Today / Done</span>}
+                  value={`${stats.tasks_today_count} (${stats.tasks_completed_today_count} done)`}
+                  prefix={<FileDoneOutlined style={{ color: '#52c41a', fontSize: 14 }} />}
+                  valueStyle={{ fontSize: 14, fontWeight: 700, color: '#237804' }}
                 />
               </Card>
             </Col>
-            <Col span={8}>
-              <Card size="small" bordered={true} style={{ background: '#fafafa' }}>
+            <Col span={12}>
+              <Card size="small" bordered={true} style={{ background: stats.pending_submissions_count > 0 ? '#fffbe6' : '#fafafa', borderColor: stats.pending_submissions_count > 0 ? '#ffe58f' : '#f0f0f0' }}>
                 <Statistic
-                  title={<span style={{ fontSize: 11 }}>Approved Today</span>}
-                  value={formatSecondsToHoursMinutes(todayStats.approved_seconds)}
-                  valueStyle={{ fontSize: 16, fontWeight: 700, color: '#52c41a' }}
-                />
-              </Card>
-            </Col>
-            <Col span={8}>
-              <Card size="small" bordered={true} style={{ background: '#fafafa' }}>
-                <Statistic
-                  title={<span style={{ fontSize: 11 }}>Pending</span>}
-                  value={todayStats.pending_count}
+                  title={<span style={{ fontSize: 11 }}>Pending Approval</span>}
+                  value={stats.pending_submissions_count}
+                  prefix={<ClockCircleOutlined style={{ color: stats.pending_submissions_count > 0 ? '#faad14' : '#8c8c8c', fontSize: 14 }} />}
                   valueStyle={{
-                    fontSize: 16,
+                    fontSize: 14,
                     fontWeight: 700,
-                    color: todayStats.pending_count > 0 ? '#fa8c16' : undefined,
+                    color: stats.pending_submissions_count > 0 ? '#d48806' : undefined,
                   }}
                 />
               </Card>
             </Col>
           </Row>
 
+          {/* Second Row: Recorded Today vs Approved Today */}
+          <Row gutter={[8, 8]}>
+            <Col span={12}>
+              <Card size="small" bordered={true} style={{ background: '#e6f4ff', borderColor: '#91caff' }}>
+                <Statistic
+                  title={<span style={{ fontSize: 11, color: '#0958d9' }}>Recorded Today</span>}
+                  value={formatSecondsToHoursMinutes(stats.recorded_today_seconds)}
+                  prefix={<FieldTimeOutlined style={{ color: '#1677ff', fontSize: 14 }} />}
+                  valueStyle={{ fontSize: 15, fontWeight: 700, color: '#1677ff' }}
+                />
+              </Card>
+            </Col>
+            <Col span={12}>
+              <Card size="small" bordered={true} style={{ background: '#f6ffed', borderColor: '#b7eb8f' }}>
+                <Statistic
+                  title={<span style={{ fontSize: 11, color: '#389e0d' }}>Approved Today</span>}
+                  value={formatSecondsToHoursMinutes(stats.approved_today_seconds)}
+                  prefix={<CheckCircleOutlined style={{ color: '#52c41a', fontSize: 14 }} />}
+                  valueStyle={{ fontSize: 15, fontWeight: 700, color: '#52c41a' }}
+                />
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Recent Tasks List */}
           <div>
-            <Typography.Text type="secondary" style={{ fontSize: 12, marginBottom: 8, display: 'block' }}>
-              Recent Submissions
-            </Typography.Text>
+            <Flex justify="space-between" align="center" style={{ marginBottom: 8 }}>
+              <Typography.Text type="secondary" style={{ fontSize: 12, fontWeight: 600 }}>
+                Recent Tasks & Submissions
+              </Typography.Text>
+              <Typography.Text type="secondary" style={{ fontSize: 11 }}>
+                Last {submissions.length} submissions
+              </Typography.Text>
+            </Flex>
             <Table
-              dataSource={submissions.slice(0, 4)}
+              dataSource={submissions.slice(0, 5)}
               columns={columns as any}
               rowKey="id"
               pagination={false}
               size="small"
-              locale={{ emptyText: 'No recent submissions' }}
+              locale={{ emptyText: 'No submissions yet' }}
             />
           </div>
         </Flex>
@@ -234,3 +276,4 @@ export const EmployeeApprovalWidget: React.FC = () => {
 };
 
 export default EmployeeApprovalWidget;
+

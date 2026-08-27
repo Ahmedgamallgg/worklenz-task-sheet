@@ -119,5 +119,11 @@ export const timeApprovalsApiService = {
     const response = await apiClient.get(`${API_BASE_URL}/timesheets/team`, { params });
     return response.data;
   },
+
+  getDashboardStats: async (): Promise<IServerResponse<import('@/types/time-approval.types').IManagerDashboardStats>> => {
+    const response = await apiClient.get(`${rootUrl}/dashboard-stats`);
+    return response.data;
+  },
 };
+
 

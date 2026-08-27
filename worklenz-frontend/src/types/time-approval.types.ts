@@ -78,3 +78,42 @@ export interface ITimesheetSummary {
   total_adjusted_seconds: number;
   tasks_count: number;
 }
+
+export interface ITeamMemberDashboardSummary {
+  team_member_id: string;
+  user_id: string;
+  name: string;
+  email: string;
+  avatar_url?: string;
+  role_name?: string;
+  tasks_in_progress: number;
+  recorded_today_seconds: number;
+  approved_today_seconds: number;
+  pending_count: number;
+}
+
+export interface IManagerDashboardStats {
+  my_work: {
+    tasks_count: number;
+    tasks_today_count: number;
+    tasks_completed_today_count: number;
+    recorded_today_seconds: number;
+    approved_today_seconds: number;
+    pending_submissions_count: number;
+    pending_submissions_seconds: number;
+    recent_submissions: ITaskTimeApproval[];
+  };
+  my_team: {
+    is_manager: boolean;
+    employees_count: number;
+    tasks_in_progress_count: number;
+    pending_approvals_count: number;
+    pending_time_seconds: number;
+    overdue_tasks_count: number;
+    recorded_today_seconds: number;
+    approved_today_seconds: number;
+    team_members_summary: ITeamMemberDashboardSummary[];
+    recent_pending_approvals: ITaskTimeApproval[];
+  };
+}
+

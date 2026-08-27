@@ -29,6 +29,12 @@ taskTimeApprovalApiRouter.get(
   safeControllerFunction(TaskTimeApprovalController.getPendingApprovals)
 );
 
+// Get dashboard stats (My Work & My Team)
+taskTimeApprovalApiRouter.get(
+  "/dashboard-stats",
+  safeControllerFunction(TaskTimeApprovalController.getDashboardStats)
+);
+
 // Get timesheet summary
 taskTimeApprovalApiRouter.get(
   "/timesheet-summary",

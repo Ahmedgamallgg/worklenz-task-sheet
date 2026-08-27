@@ -319,5 +319,29 @@ export default class TaskTimeApprovalController extends WorklenzControllerBase {
 
     return res.status(200).send(new ServerResponse(true, data));
   }
+
+  /**
+   * Get Manager and Employee Dashboard statistics (GET /dashboard-stats)
+   */
+  @HandleExceptions()
+  public static async getDashboardStats(req: IWorkLenzRequest, res: IWorkLenzResponse): Promise<IWorkLenzResponse> {
+    const userId = req.user?.id;
+    const teamId = req.user?.team_id;
+
+    if (!userId || !teamId) {
+      return res.status(400).send(new ServerResponse(false, null, "Authentication required."));
+    }
+
+    const isAdmin = req.user?.is_admin || req.user?.owner;
+
+    const data = await TaskTimeApprovalService.getDashboardStats({
+      userId,
+      teamId,
+      isAdmin,
+    });
+
+    return res.status(200).send(new ServerResponse(true, data));
+  }
 }
+
 
