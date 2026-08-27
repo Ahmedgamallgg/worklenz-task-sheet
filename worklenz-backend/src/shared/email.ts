@@ -254,7 +254,7 @@ export async function sendEmailEnhanced(email: IEmail): Promise<IEmailResult> {
           },
         },
       },
-      Source: "Worklenz <noreply@worklenz.com>",
+      Source: "Seven C's Creative Hub <noreply@worklenz.com>",
     });
 
     const res = await sesClient.send(command);

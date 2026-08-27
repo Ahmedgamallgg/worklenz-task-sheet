@@ -55,9 +55,9 @@ const NavbarLogo = () => {
   const logoHeight = useMemo(() => {
     // For custom logos, maintain aspect ratio but constrain to navbar height
     if (organization?.logo_url) {
-      return isChristmasSeason ? 36 : 26;
+      return isChristmasSeason ? 36 : 32;
     }
-    return isChristmasSeason ? 36 : 26;
+    return isChristmasSeason ? 36 : 34;
   }, [organization?.logo_url, isChristmasSeason]);
 
   return (

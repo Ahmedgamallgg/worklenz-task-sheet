@@ -4,35 +4,35 @@ import type { ThemeConfig } from 'antd';
 export const getThemeConfig = (currentTheme: 'light' | 'dark'): ThemeConfig => ({
   algorithm: currentTheme === 'dark' ? theme.darkAlgorithm : theme.defaultAlgorithm,
   token: {
-    colorPrimary: '#1890ff',
+    colorPrimary: '#3F54D1',
     borderRadius: 6,
     fontFamily:
-      "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
-    colorBgLayout: currentTheme === 'dark' ? '#141414' : '#f5f5f5',
-    colorBgContainer: currentTheme === 'dark' ? '#1f1f1f' : '#ffffff',
-    colorText: currentTheme === 'dark' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(0, 0, 0, 0.88)',
+      "'Rubik', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif",
+    colorBgLayout: currentTheme === 'dark' ? '#12131a' : '#f8f9f1',
+    colorBgContainer: currentTheme === 'dark' ? '#1e2030' : '#ffffff',
+    colorText: currentTheme === 'dark' ? '#e8eaf6' : '#1a1a2e',
     colorTextSecondary:
-      currentTheme === 'dark' ? 'rgba(255, 255, 255, 0.65)' : 'rgba(0, 0, 0, 0.65)',
-    colorBorder: currentTheme === 'dark' ? '#424242' : '#d9d9d9',
-    colorBorderSecondary: currentTheme === 'dark' ? '#303030' : '#f0f0f0',
+      currentTheme === 'dark' ? '#a0a8d0' : '#555566',
+    colorBorder: currentTheme === 'dark' ? '#2e3150' : '#e2e4f0',
+    colorBorderSecondary: currentTheme === 'dark' ? '#252839' : '#f0f3f2',
     colorFillSecondary:
-      currentTheme === 'dark' ? 'rgba(255, 255, 255, 0.06)' : 'rgba(0, 0, 0, 0.06)',
+      currentTheme === 'dark' ? 'rgba(63, 84, 209, 0.08)' : 'rgba(63, 84, 209, 0.04)',
     colorFillTertiary:
-      currentTheme === 'dark' ? 'rgba(255, 255, 255, 0.04)' : 'rgba(0, 0, 0, 0.04)',
+      currentTheme === 'dark' ? 'rgba(63, 84, 209, 0.05)' : 'rgba(63, 84, 209, 0.02)',
   },
   components: {
     Layout: {
-      siderBg: currentTheme === 'dark' ? '#141414' : '#ffffff',
-      headerBg: currentTheme === 'dark' ? '#1f1f1f' : '#ffffff',
-      bodyBg: currentTheme === 'dark' ? '#141414' : '#f5f5f5',
+      siderBg: currentTheme === 'dark' ? '#12131a' : '#ffffff',
+      headerBg: currentTheme === 'dark' ? '#1e2030' : '#ffffff',
+      bodyBg: currentTheme === 'dark' ? '#12131a' : '#f8f9f1',
     },
     Menu: {
       colorBgContainer: 'transparent',
       itemBg: 'transparent',
-      itemSelectedBg: currentTheme === 'dark' ? 'rgba(24, 144, 255, 0.15)' : '#e6f4ff',
+      itemSelectedBg: currentTheme === 'dark' ? 'rgba(63, 84, 209, 0.20)' : '#eef2ff',
       itemHoverBg: currentTheme === 'dark' ? 'rgba(255, 255, 255, 0.08)' : 'rgba(0, 0, 0, 0.04)',
-      itemSelectedColor: '#1890ff',
-      itemColor: currentTheme === 'dark' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(0, 0, 0, 0.88)',
+      itemSelectedColor: '#3F54D1',
+      itemColor: currentTheme === 'dark' ? '#e8eaf6' : '#1a1a2e',
       itemMarginBlock: 4,
       itemMarginInline: 8,
       itemPaddingInline: 16,

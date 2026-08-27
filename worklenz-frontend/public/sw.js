@@ -357,7 +357,7 @@ self.addEventListener('push', event => {
     },
   };
 
-  event.waitUntil(self.registration.showNotification('Worklenz', options));
+  event.waitUntil(self.registration.showNotification("Seven C's Creative Hub", options));
 });
 
 // Handle notification click events
