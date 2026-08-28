@@ -1,11 +1,8 @@
-import { SendEmailCommand, SESClient } from "@aws-sdk/client-ses";
 import { Validator } from "jsonschema";
 import { QueryResult } from "pg";
 import { log_error, isValidateEmail } from "./utils";
 import emailRequestSchema from "../json_schemas/email-request-schema";
 import db from "../config/db";
-
-const sesClient = new SESClient({ region: process.env.AWS_REGION });
 
 export interface IEmail {
   to?: string[];
@@ -93,50 +90,18 @@ function categorizeError(error: any): {
   message: string;
   details?: any;
 } {
-  if (error.name === "MessageRejected") {
+  if (error.code === "RESEND_API_ERROR" || error.code === "NETWORK_ERROR") {
     return {
-      code: "MESSAGE_REJECTED",
-      message: "Email rejected by Amazon SES",
-      details: error.message,
-    };
-  }
-
-  if (error.name === "SendingQuotaExceeded") {
-    return {
-      code: "QUOTA_EXCEEDED",
-      message: "Daily sending quota exceeded",
-      details: error.message,
-    };
-  }
-
-  if (error.name === "Throttling") {
-    return {
-      code: "RATE_LIMITED",
-      message: "Sending rate exceeded",
-      details: error.message,
-    };
-  }
-
-  if (error.code === "InvalidParameterValue") {
-    return {
-      code: "INVALID_EMAIL",
-      message: "Invalid email address or parameters",
-      details: error.message,
-    };
-  }
-
-  if (error.code === "NetworkingError") {
-    return {
-      code: "NETWORK_ERROR",
-      message: "Network connection failed",
-      details: error.message,
+      code: error.code,
+      message: error.message,
+      details: error.details,
     };
   }
 
   return {
     code: "UNKNOWN_ERROR",
     message: error.message || "Unknown error occurred",
-    details: error,
+    details: error.message,
   };
 }
 
@@ -205,6 +170,18 @@ export async function sendEmailEnhanced(email: IEmail): Promise<IEmailResult> {
       };
     }
 
+    const apiKey = process.env.RESEND_API_KEY;
+    const from = process.env.EMAIL_FROM;
+    if (!apiKey || !from) {
+      return {
+        success: false,
+        error: {
+          code: "EMAIL_NOT_CONFIGURED",
+          message: "Set RESEND_API_KEY and EMAIL_FROM to enable email delivery",
+        },
+      };
+    }
+
     // Log email attempt for each recipient
     for (const recipient of options.to) {
       const logId = await logEmailAttempt(
@@ -219,46 +196,62 @@ export async function sendEmailEnhanced(email: IEmail): Promise<IEmailResult> {
 
     let messageId: string | undefined;
 
-    // Send via AWS SES
-    console.log("\n📧 Sending email via AWS SES...");
+    console.log("\n📧 Sending email via Resend...");
     console.log("To:", options.to.join(", "));
     console.log("Subject:", options.subject);
 
-    const charset = "UTF-8";
-    
     // Generate plain text version by stripping HTML tags
     const plainText = options.html
-      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
-      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
-      .replace(/<[^>]+>/g, ' ')
-      .replace(/\s+/g, ' ')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "")
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, "")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
       .trim();
-    
-    const command = new SendEmailCommand({
-      Destination: {
-        ToAddresses: options.to,
-      },
-      Message: {
-        Subject: {
-          Charset: charset,
-          Data: options.subject,
-        },
-        Body: {
-          Html: {
-            Charset: charset,
-            Data: options.html,
-          },
-          Text: {
-            Charset: charset,
-            Data: plainText,
-          },
-        },
-      },
-      Source: "Seven C's Creative Hub <noreply@worklenz.com>",
-    });
 
-    const res = await sesClient.send(command);
-    messageId = res.MessageId;
+    let response: Response;
+    try {
+      response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from,
+          to: options.to,
+          subject: options.subject,
+          html: options.html,
+          text: plainText,
+        }),
+      });
+    } catch (cause) {
+      const error = new Error("Network connection failed") as Error & {
+        code: string;
+        details?: string;
+      };
+      error.code = "NETWORK_ERROR";
+      error.details = cause instanceof Error ? cause.message : undefined;
+      throw error;
+    }
+
+    const result = (await response.json().catch(() => ({}))) as {
+      id?: string;
+      name?: string;
+      message?: string;
+    };
+    if (!response.ok || !result.id) {
+      const error = new Error(
+        result.message || `Resend returned HTTP ${response.status}`,
+      ) as Error & {
+        code: string;
+        details: { status: number; type?: string };
+      };
+      error.code = "RESEND_API_ERROR";
+      error.details = { status: response.status, type: result.name };
+      throw error;
+    }
+
+    messageId = result.id;
     console.log("✅ Email sent successfully!");
     console.log("Message ID:", messageId);
 

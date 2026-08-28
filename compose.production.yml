@@ -26,6 +26,8 @@ x-backend-environment: &backend-environment
   S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3_SECRET_ACCESS_KEY in Portainer}
   ENABLE_EMAIL_CRONJOBS: ${ENABLE_EMAIL_CRONJOBS:-false}
   ENABLE_RECURRING_JOBS: ${ENABLE_RECURRING_JOBS:-true}
+  RESEND_API_KEY: ${RESEND_API_KEY:-}
+  EMAIL_FROM: ${EMAIL_FROM:-}
 
 services:
   db:

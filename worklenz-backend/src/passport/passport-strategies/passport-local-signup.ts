@@ -75,7 +75,7 @@ async function handleSignUp(req: Request, email: string, password: string, done:
   try {
     const user = await registerUser(password, team_id, sanitizedName, team_name, email, timezone, team_member_id);
     sendWelcomeEmail(email, sanitizedName);
-    return done(null, user, req.flash(SUCCESS_KEY, "Registration successful. Please check your email for verification."));
+    return done(null, user, req.flash(SUCCESS_KEY, "Registration successful."));
   } catch (error: any) {
     const message = (error?.message) || "";
 

@@ -40,6 +40,10 @@ Do not send the Portainer webhook secret to the current plain-HTTP port `9000`. 
 | `JWT_SECRET` | Secret, at least 64 random characters |
 | `ENCRYPTION_KEY` | 64 hexadecimal characters |
 | `ENCRYPTION_SALT` | Secret, at least 32 random characters |
+| `RESEND_API_KEY` | Secret Resend API key (`re_...`); omit to disable email delivery |
+| `EMAIL_FROM` | `TaskSheet <noreply@mail.tasks.sevenc.org>` after verifying that sending domain |
+
+In Resend, add `mail.tasks.sevenc.org` as a sending domain and copy its DNS records into Cloudflare before setting `EMAIL_FROM`. Local email/password registration still works when the two Resend variables are absent, but welcome and notification emails are not delivered.
 
 The stack does not publish application, database, or storage ports on the host. Traefik is the only ingress path. PostgreSQL and MinIO data live in named volumes, and PostgreSQL backups are retained for 30 days in `tasksheet_database_backups`.
 
