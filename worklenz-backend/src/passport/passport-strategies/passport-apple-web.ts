@@ -225,21 +225,21 @@ async function handleAppleWebAuth(
  * This strategy is conditionally exported based on environment configuration
  */
 
-// Check if Apple Sign-In is properly configured
-const isAppleConfigured = () => {
-  return !!(
-    process.env.APPLE_CLIENT_ID &&
-    process.env.APPLE_TEAM_ID &&
-    process.env.APPLE_KEY_ID &&
-    process.env.APPLE_PRIVATE_KEY_PATH &&
-    process.env.APPLE_CALLBACK_URL
-  );
+const appleConfig = {
+  APPLE_CLIENT_ID: process.env.APPLE_CLIENT_ID,
+  APPLE_TEAM_ID: process.env.APPLE_TEAM_ID,
+  APPLE_KEY_ID: process.env.APPLE_KEY_ID,
+  APPLE_PRIVATE_KEY_PATH: process.env.APPLE_PRIVATE_KEY_PATH,
+  APPLE_CALLBACK_URL: process.env.APPLE_CALLBACK_URL,
 };
+const missingAppleConfig = Object.entries(appleConfig)
+  .filter(([, value]) => !value)
+  .map(([name]) => name);
 
 // Only create strategy if Apple is configured
 let appleStrategy: any = null;
 
-if (isAppleConfigured()) {
+if (missingAppleConfig.length === 0) {
   appleStrategy = new AppleStrategy(
     {
       clientID: process.env.APPLE_CLIENT_ID as string,
@@ -267,9 +267,9 @@ if (isAppleConfigured()) {
         done,
       ),
   );
-} else {
+} else if (missingAppleConfig.length < Object.keys(appleConfig).length) {
   console.warn(
-    "⚠️  Apple Sign-In Web OAuth is not configured. Set APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_PRIVATE_KEY_PATH, and APPLE_CALLBACK_URL in .env to enable it.",
+    `Apple Sign-In Web OAuth configuration is incomplete. Missing: ${missingAppleConfig.join(", ")}.`,
   );
 }
 

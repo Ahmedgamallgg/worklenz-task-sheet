@@ -1,5 +1,6 @@
 x-backend-environment: &backend-environment
   NODE_ENV: production
+  EDITION: ce
   PORT: "3000"
   SESSION_NAME: worklenz.sid
   SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in Portainer}

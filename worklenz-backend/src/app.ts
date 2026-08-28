@@ -8,7 +8,7 @@ import compression from "compression";
 import passport from "passport";
 import { csrfSync } from "csrf-sync";
 import cors from "cors";
-import flash from "connect-flash";
+import flash from "./middlewares/flash";
 import hpp from "hpp";
 
 import passportConfig from "./passport";
@@ -196,7 +196,7 @@ app.use(passport.initialize());
 app.use(passport.session());
 
 // Flash messages
-app.use(flash());
+app.use(flash);
 
 // Auth check middleware
 function isLoggedIn(req: Request, _res: Response, next: NextFunction) {
@@ -253,13 +253,11 @@ app.use((req, res, next) => {
   // Always exclude webhooks (external services can't provide CSRF tokens)
   if (path.startsWith("/webhook/") || originalUrl.startsWith("/webhook/") ||
       originalUrl.includes("/webhook/directpay/")) {
-    log_error(`[CSRF] Excluding webhook: ${path}`);
     return next();
   }
 
   // Exclude public routes (read-only or public access)
   if (path.startsWith("/public/") || originalUrl.startsWith("/public/")) {
-    log_error(`[CSRF] Excluding public route: ${path}`);
     return next();
   }
 
@@ -272,7 +270,6 @@ app.use((req, res, next) => {
     originalUrl.includes("/client-portal/invitation/") ||
     originalUrl.includes("/client-portal/handle-organization-invite")
   ) {
-    log_error(`[CSRF] Excluding invitation route: ${path}`);
     return next();
   }
 
@@ -345,18 +342,7 @@ app.use((req, res, next) => {
   // This protects POST, PUT, DELETE, PATCH operations from CSRF attacks
   // GET, OPTIONS, HEAD requests don't need CSRF protection
   if (isStateChanging) {
-    csrfSynchronisedProtection(req, res, (err) => {
-      if (err) {
-        console.error(`[CSRF] CSRF protection error:`, err);
-        console.error(`[CSRF] Request details:`, {
-          method: req.method,
-          path: req.path,
-          originalUrl: req.originalUrl,
-          url: req.url,
-        });
-      }
-      next(err);
-    });
+    csrfSynchronisedProtection(req, res, next);
   } else {
     next();
   }

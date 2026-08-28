@@ -1,5 +1,5 @@
 import { IServerResponse } from '@/types/common.types';
-import apiClient from '../api-client';
+import apiClient, { refreshCsrfToken } from '../api-client';
 import {
   IUserLoginRequest,
   IUserLoginResponse,
@@ -12,6 +12,7 @@ const rootUrl = `${AUTH_API_BASE_URL}`;
 export const authApiService = {
   async login(credentials: IUserLoginRequest): Promise<IAuthorizeResponse> {
     const response = await apiClient.post<IAuthorizeResponse>(`${rootUrl}/login`, credentials);
+    await refreshCsrfToken();
     return response.data;
   },
 
@@ -27,6 +28,7 @@ export const authApiService = {
 
   async signUp(body: any): Promise<IServerResponse<void>> {
     const response = await apiClient.post<IServerResponse<void>>(`${rootUrl}/signup`, body);
+    await refreshCsrfToken();
     return response.data;
   },
 

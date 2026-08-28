@@ -18,9 +18,17 @@ function resolveBusinessEdition(): IBusinessEdition {
     const eeBusiness: IBusinessEdition = require("../ee/business").default;
     return eeBusiness;
   } catch (err) {
-    // EE code not present (open-core build) — use the CE stub.
+    if (
+      typeof err !== "object" ||
+      err === null ||
+      !("message" in err) ||
+      !String(err.message).includes("Cannot find module '../ee/business'")
+    ) {
+      throw err;
+    }
+
     // eslint-disable-next-line no-console
-    console.warn("[edition] EE implementation unavailable; running open-core (CE).", err);
+    console.warn("[edition] EE implementation unavailable; running open-core (CE).");
     return ceBusiness;
   }
 }
