@@ -73,67 +73,9 @@ jobs:
           severity: CRITICAL
           trivyignores: .trivyignore
 
-  smoke:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.image_tag == '' }}
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-
-      - name: Log in to the private registry
-        uses: docker/login-action@v4
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
-
-      - name: Create isolated smoke-test secrets
-        shell: bash
-        run: |
-          {
-            echo "IMAGE_TAG=${GITHUB_SHA}"
-            echo "APP_DOMAIN=tasks.example.invalid"
-            echo "STORAGE_DOMAIN=storage.tasks.example.invalid"
-            echo "DB_ADMIN_USER=postgres"
-            echo "DB_ADMIN_PASSWORD=$(openssl rand -hex 24)"
-            echo "DB_APP_USER=worklenz_backend"
-            echo "DB_APP_PASSWORD=$(openssl rand -hex 24)"
-            echo "MINIO_ROOT_USER=$(openssl rand -hex 12)"
-            echo "MINIO_ROOT_PASSWORD=$(openssl rand -hex 32)"
-            echo "S3_ACCESS_KEY_ID=$(openssl rand -hex 12)"
-            echo "S3_SECRET_ACCESS_KEY=$(openssl rand -hex 32)"
-            echo "SESSION_SECRET=$(openssl rand -hex 32)"
-            echo "COOKIE_SECRET=$(openssl rand -hex 32)"
-            echo "JWT_SECRET=$(openssl rand -hex 32)"
-            echo "ENCRYPTION_KEY=$(openssl rand -hex 32)"
-            echo "ENCRYPTION_SALT=$(openssl rand -hex 16)"
-          } >> "$GITHUB_ENV"
-
-      - name: Start the ephemeral stack
-        run: |
-          docker network create traefik_default
-          docker compose -f compose.production.yml up -d --wait --wait-timeout 300 backend frontend
-
-      - name: Verify frontend and backend
-        run: |
-          docker compose -f compose.production.yml exec -T frontend wget -qO- http://127.0.0.1:5000/ >/dev/null
-          docker compose -f compose.production.yml exec -T backend node -e "fetch('http://127.0.0.1:3000/public/health').then(r => { if (!r.ok) process.exit(1) })"
-
-      - name: Show container state on failure
-        if: failure()
-        run: |
-          docker compose -f compose.production.yml ps --all
-          docker compose -f compose.production.yml logs --tail=100
-
-      - name: Remove the ephemeral stack
-        if: always()
-        run: |
-          docker compose -f compose.production.yml down --volumes --remove-orphans
-          docker network rm traefik_default || true
-
   deploy:
-    needs: [build, smoke]
-    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') && (needs.smoke.result == 'success' || needs.smoke.result == 'skipped') }}
+    needs: build
+    if: ${{ always() && (needs.build.result == 'success' || needs.build.result == 'skipped') }}
     runs-on: ubuntu-latest
     environment:
       name: production

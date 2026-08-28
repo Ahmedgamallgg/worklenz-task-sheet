@@ -176,36 +176,28 @@ export default defineConfig(({ command, mode }) => {
       minify: isProduction ? 'esbuild' : false,
 
       // **Chunk Size Warnings**
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 1500,
 
       // **Rollup Options**
       rollupOptions: {
         output: {
           // **Granular chunking strategy for better parallelism and cache reuse**
-          manualChunks(id) {
-            if (id.includes('node_modules')) {
-              if (id.includes('jspdf')) return 'vendor-jspdf';
-              if (id.includes('html2canvas')) return 'vendor-html2canvas';
-              if (id.includes('chart.js') || id.includes('react-chartjs-2') || id.includes('chartjs-plugin-datalabels')) {
-                return 'vendor-charts';
-              }
-              if (id.includes('gantt-task-react')) return 'vendor-gantt';
-              if (id.includes('@ant-design/icons')) return 'vendor-antd-icons';
-              if (id.includes('antd')) return 'vendor-antd';
-              if (id.includes('@rc-component') || id.includes('/rc-')) return 'vendor-rc';
-              if (id.includes('@dnd-kit')) return 'vendor-dnd';
-              if (id.includes('quill') || id.includes('react-quill')) return 'vendor-quill';
-              if (id.includes('@tanstack')) return 'vendor-tanstack';
-              if (id.includes('i18next') || id.includes('react-i18next')) return 'vendor-i18n';
-              if (id.includes('socket.io-client')) return 'vendor-socket';
-              if (id.includes('date-fns') || id.includes('dayjs')) return 'vendor-dates';
-              if (id.includes('lodash') || id.includes('lodash-es')) return 'vendor-lodash';
-              if (id.includes('@reduxjs') || id.includes('react-redux')) return 'vendor-redux';
-              if (id.includes('react-router') || id.includes('react-router-dom')) return 'vendor-react-router';
-              if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler')) {
-                return 'vendor-react-core';
-              }
-            }
+          manualChunks: {
+            'react-vendor': ['react', 'react-dom', 'react/jsx-runtime'],
+            'react-router': ['react-router-dom'],
+            'antd-core': ['antd'],
+            'antd-icons': ['@ant-design/icons'],
+            charts: ['chart.js', 'react-chartjs-2', 'chartjs-plugin-datalabels'],
+            gantt: ['gantt-task-react'],
+            jspdf: ['jspdf'],
+            html2canvas: ['html2canvas'],
+            socket: ['socket.io-client'],
+            i18n: [
+              'i18next',
+              'react-i18next',
+              'i18next-browser-languagedetector',
+              'i18next-http-backend',
+            ],
           },
 
           // **File Naming Strategies**

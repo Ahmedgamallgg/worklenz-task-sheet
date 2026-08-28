@@ -1,6 +1,6 @@
 # Production deployment
 
-The production stack runs behind the existing Traefik instance and pulls immutable images from `registry.sevencsolutions.com`. GitHub Actions builds, scans, smoke-tests, and then asks for approval through the `production` environment before Portainer receives the deployment webhook.
+The production stack runs behind the existing Traefik instance and pulls immutable images from `registry.sevencsolutions.com`. GitHub Actions builds, scans, and then asks for approval through the `production` environment before Portainer receives the deployment webhook.
 
 ## One-time DNS
 
@@ -47,7 +47,7 @@ On a new database, the current schema snapshot is installed and the 115 bundled 
 
 ## One-time GitHub configuration
 
-Add these repository Actions secrets so the build and smoke-test jobs can publish and pull images:
+Add these repository Actions secrets so the build job can publish images:
 
 - `REGISTRY_USERNAME`: dedicated push-capable registry user.
 - `REGISTRY_PASSWORD`: token or password for that registry user.
@@ -59,7 +59,7 @@ Create a `production` environment restricted to the `main` branch and require a 
 
 For the first deployment, create the GitHub environment and registry secrets, then push this change. Leave the deploy job waiting for production approval while the SHA-tagged images build. Create the Portainer stack with that full commit SHA, copy its HTTPS webhook into `PORTAINER_WEBHOOK_URL`, and only then approve the waiting job.
 
-The workflow is `.github/workflows/deploy-production.yml`. A push to `main` builds and pushes all three SHA-tagged images, blocks on critical fixed vulnerabilities, starts an ephemeral Compose smoke environment, waits for the production reviewer, updates `IMAGE_TAG` through the Portainer webhook, and verifies both production health endpoints.
+The workflow is `.github/workflows/deploy-production.yml`. A push to `main` builds and pushes all three SHA-tagged images, blocks on critical fixed vulnerabilities, waits for the production reviewer, updates `IMAGE_TAG` through the Portainer webhook, and verifies both production health endpoints.
 
 ## Rollback
 
