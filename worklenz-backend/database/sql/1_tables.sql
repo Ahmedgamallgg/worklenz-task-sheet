@@ -427,6 +427,8 @@ CREATE TABLE IF NOT EXISTS organizations (
     updated_at               TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     license_type_id          UUID,
     is_lkr_billing           BOOLEAN                  DEFAULT FALSE,
+    business_plan_override   BOOLEAN                  DEFAULT FALSE              NOT NULL,
+    team_member_limit_override INTEGER,
     working_hours            DOUBLE PRECISION         DEFAULT 8                  NOT NULL
 );
 
@@ -1515,6 +1517,7 @@ CREATE TABLE IF NOT EXISTS users (
     user_no         BIGINT                   DEFAULT NEXTVAL('users_user_no_seq'::REGCLASS) NOT NULL,
     timezone_id     UUID                                                                    NOT NULL,
     google_id       TEXT,
+    apple_id        TEXT,
     socket_id       TEXT,
     created_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP                      NOT NULL,
     updated_at      TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP                      NOT NULL,

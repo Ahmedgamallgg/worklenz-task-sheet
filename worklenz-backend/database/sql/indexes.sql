@@ -30,6 +30,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS custom_project_templates_name_team_id_uindex
 CREATE INDEX IF NOT EXISTS idx_pg_sessions_expire 
     ON pg_sessions (expire);
 
+CREATE INDEX IF NOT EXISTS idx_users_apple_id
+    ON users (apple_id);
+
 CREATE UNIQUE INDEX IF NOT EXISTS job_titles_name_team_id_uindex
     ON job_titles (name, team_id);
 

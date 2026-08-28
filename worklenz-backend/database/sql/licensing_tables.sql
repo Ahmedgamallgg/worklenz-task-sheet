@@ -22,6 +22,30 @@ CREATE TABLE IF NOT EXISTS licensing_pricing_plans (
     is_startup_plan  BOOLEAN DEFAULT FALSE NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS licensing_plan_tiers (
+    id                  UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    tier_name           TEXT NOT NULL UNIQUE,
+    display_name        TEXT NOT NULL,
+    trial_duration_days INTEGER,
+    trial_enabled       BOOLEAN DEFAULT FALSE
+);
+
+CREATE TABLE IF NOT EXISTS licensing_plan_trials (
+    id                    UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+    user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    organization_id       UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
+    plan_tier_id          UUID NOT NULL REFERENCES licensing_plan_tiers(id),
+    trial_start_date      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+    trial_end_date        TIMESTAMP WITH TIME ZONE NOT NULL,
+    is_active             BOOLEAN DEFAULT TRUE,
+    converted_to_paid     BOOLEAN DEFAULT FALSE,
+    conversion_date       TIMESTAMP WITH TIME ZONE,
+    cancellation_reason   TEXT,
+    created_at            TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at            TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    UNIQUE (user_id, plan_tier_id)
+);
+
 CREATE TABLE IF NOT EXISTS licensing_settings (
     default_trial_storage NUMERIC DEFAULT 1 NOT NULL,
     default_storage       NUMERIC DEFAULT 25 NOT NULL,
@@ -97,6 +121,14 @@ CREATE TABLE IF NOT EXISTS licensing_user_subscriptions (
 
 CREATE INDEX IF NOT EXISTS licensing_coupon_codes_redeemed_by_index
     ON licensing_coupon_codes(redeemed_by);
+CREATE INDEX IF NOT EXISTS licensing_plan_trials_user_id_index
+    ON licensing_plan_trials(user_id);
+CREATE INDEX IF NOT EXISTS licensing_plan_trials_organization_id_index
+    ON licensing_plan_trials(organization_id);
+CREATE INDEX IF NOT EXISTS licensing_plan_trials_active_index
+    ON licensing_plan_trials(is_active) WHERE is_active = TRUE;
+CREATE INDEX IF NOT EXISTS licensing_plan_trials_end_date_index
+    ON licensing_plan_trials(trial_end_date) WHERE is_active = TRUE;
 CREATE INDEX IF NOT EXISTS licensing_custom_subs_user_id_index
     ON licensing_custom_subs(user_id);
 CREATE INDEX IF NOT EXISTS licensing_user_subscriptions_user_id_index

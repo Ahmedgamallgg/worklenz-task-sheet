@@ -34,3 +34,32 @@ describe("import schema", () => {
     expect(migrations.includes(`CREATE TABLE IF NOT EXISTS ${table} (`)).toBe(true);
   });
 });
+
+describe("authentication schema", () => {
+  it.each(["licensing_plan_tiers", "licensing_plan_trials"])(
+    "includes %s in the fresh licensing snapshot",
+    table => {
+      const schema = fs.readFileSync(
+        path.join(backendRoot, "database/sql/licensing_tables.sql"),
+        "utf8",
+      );
+
+      expect(schema).toContain(`CREATE TABLE IF NOT EXISTS ${table} (`);
+    },
+  );
+
+  it.each(["business_plan_override", "team_member_limit_override"])(
+    "includes organizations.%s in the fresh database snapshot",
+    column => {
+      const schema = fs.readFileSync(
+        path.join(backendRoot, "database/sql/1_tables.sql"),
+        "utf8",
+      );
+      const organizations = schema.match(
+        /CREATE TABLE IF NOT EXISTS organizations \(([\s\S]*?)\n\);/,
+      )?.[1];
+
+      expect(organizations).toContain(column);
+    },
+  );
+});
