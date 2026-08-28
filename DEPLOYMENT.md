@@ -52,6 +52,7 @@ Add these repository Actions secrets so the build and smoke-test jobs can publis
 - `REGISTRY_USERNAME`: dedicated push-capable registry user.
 - `REGISTRY_PASSWORD`: token or password for that registry user.
 
+
 Create a `production` environment restricted to the `main` branch and require a reviewer. Add one environment secret:
 
 - `PORTAINER_WEBHOOK_URL`: the HTTPS stack webhook URL, without query parameters.
