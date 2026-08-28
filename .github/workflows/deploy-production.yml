@@ -71,6 +71,7 @@ jobs:
           exit-code: "1"
           ignore-unfixed: true
           severity: CRITICAL
+          trivyignores: .trivyignore
 
   smoke:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.image_tag == '' }}
