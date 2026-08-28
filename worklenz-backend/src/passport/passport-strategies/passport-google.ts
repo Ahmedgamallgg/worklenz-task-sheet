@@ -98,10 +98,14 @@ async function handleGoogleLogin(req: Request, _accessToken: string, _refreshTok
  * Passport strategy for authenticate with google
  * http://www.passportjs.org/packages/passport-google-oauth20/
  */
-export default new GoogleStrategy.Strategy({
-  clientID: process.env.GOOGLE_CLIENT_ID as string,
-  clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
-  callbackURL: process.env.GOOGLE_CALLBACK_URL as string,
-  passReqToCallback: true
-},
-  (req, _accessToken, _refreshToken, profile, done) => void handleGoogleLogin(req, _accessToken, _refreshToken, profile, done));
+const googleStrategy = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CALLBACK_URL
+  ? new GoogleStrategy.Strategy({
+    clientID: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    callbackURL: process.env.GOOGLE_CALLBACK_URL,
+    passReqToCallback: true
+  },
+  (req, _accessToken, _refreshToken, profile, done) => void handleGoogleLogin(req, _accessToken, _refreshToken, profile, done))
+  : null;
+
+export default googleStrategy;

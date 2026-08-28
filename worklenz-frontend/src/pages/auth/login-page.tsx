@@ -27,6 +27,7 @@ import alertService from '@/services/alerts/alertService';
 import { useAuthService } from '@/hooks/useAuth';
 import { WORKLENZ_REDIRECT_PROJ_KEY } from '@/shared/constants';
 import { getDeviceType } from '@/types/mixpanel-events.types';
+import config from '@/config/env';
 
 interface LoginFormValues {
   email: string;
@@ -134,7 +135,7 @@ const LoginPage: React.FC = () => {
         device_type: getDeviceType(),
         button_location: 'inline',
       });
-      window.location.href = `${import.meta.env.VITE_API_URL}/secure/google`;
+      window.location.href = `${config.apiUrl}/secure/google`;
     } catch (error) {
       logger.error('Google login failed', error);
     }

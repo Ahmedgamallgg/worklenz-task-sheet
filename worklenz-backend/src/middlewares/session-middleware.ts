@@ -10,7 +10,7 @@ const pgSession = require("connect-pg-simple")(session);
 const sessionConfig = {
   name: process.env.SESSION_NAME,
   secret: process.env.SESSION_SECRET || "development-secret-key",
-  proxy: false,
+  proxy: isProduction(),
   resave: false,
   saveUninitialized: true,
   rolling: true,
@@ -24,7 +24,7 @@ const sessionConfig = {
     // For mobile app support in production, use "none", for local development use "lax"
     sameSite: "lax" as const,
     // Secure only in production (HTTPS required for sameSite: "none")
-    secure: false,
+    secure: isProduction(),
     domain: undefined,
     maxAge: 30 * 24 * 60 * 60 * 1000 // 30 days
   },

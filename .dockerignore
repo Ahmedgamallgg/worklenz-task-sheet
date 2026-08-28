@@ -1,0 +1,5 @@
+**
+!docker/postgres.Dockerfile
+!worklenz-backend/database/00_init.sh
+!worklenz-backend/database/sql/**
+!worklenz-backend/database/pg-migrations/**

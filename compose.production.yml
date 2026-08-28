@@ -1,0 +1,234 @@
+x-backend-environment: &backend-environment
+  NODE_ENV: production
+  PORT: "3000"
+  SESSION_NAME: worklenz.sid
+  SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in Portainer}
+  COOKIE_SECRET: ${COOKIE_SECRET:?Set COOKIE_SECRET in Portainer}
+  JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in Portainer}
+  ENCRYPTION_KEY: ${ENCRYPTION_KEY:?Set ENCRYPTION_KEY in Portainer}
+  ENCRYPTION_SALT: ${ENCRYPTION_SALT:?Set ENCRYPTION_SALT in Portainer}
+  DB_USER: ${DB_APP_USER:-worklenz_backend}
+  DB_PASSWORD: ${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in Portainer}
+  DB_NAME: worklenz_db
+  DB_HOST: db
+  DB_PORT: "5432"
+  DB_MAX_CLIENTS: "50"
+  HOSTNAME: ${APP_DOMAIN:?Set APP_DOMAIN in Portainer}
+  FRONTEND_URL: https://${APP_DOMAIN}
+  SERVER_CORS: https://${APP_DOMAIN}
+  SOCKET_IO_CORS: https://${APP_DOMAIN}
+  CLIENT_PORTAL_HOSTNAME: ${APP_DOMAIN}
+  STORAGE_PROVIDER: s3
+  S3_REGION: us-east-1
+  S3_BUCKET: worklenz-bucket
+  S3_URL: https://${STORAGE_DOMAIN:?Set STORAGE_DOMAIN in Portainer}/worklenz-bucket
+  S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:?Set S3_ACCESS_KEY_ID in Portainer}
+  S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:?Set S3_SECRET_ACCESS_KEY in Portainer}
+  ENABLE_EMAIL_CRONJOBS: ${ENABLE_EMAIL_CRONJOBS:-false}
+  ENABLE_RECURRING_JOBS: ${ENABLE_RECURRING_JOBS:-true}
+
+services:
+  db:
+    image: registry.sevencsolutions.com/worklenz-task-sheet-database:${IMAGE_TAG:?Set IMAGE_TAG in Portainer}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_ADMIN_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_ADMIN_PASSWORD:?Set DB_ADMIN_PASSWORD in Portainer}
+      POSTGRES_DB: worklenz_db
+      DB_APP_USER: ${DB_APP_USER:-worklenz_backend}
+      DB_APP_PASSWORD: ${DB_APP_PASSWORD:?Set DB_APP_PASSWORD in Portainer}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - database_backups:/docker-entrypoint-initdb.d/pg_backups:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 2g
+    cpus: 2
+
+  migrate:
+    image: registry.sevencsolutions.com/worklenz-task-sheet-backend:${IMAGE_TAG}
+    restart: "no"
+    command: ["npm", "run", "migrate:up"]
+    environment:
+      <<: *backend-environment
+      DB_USER: ${DB_ADMIN_USER:-postgres}
+      DB_PASSWORD: ${DB_ADMIN_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 1
+
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in Portainer}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in Portainer}
+      MINIO_SERVER_URL: https://${STORAGE_DOMAIN}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://127.0.0.1:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik_default
+      - 'traefik.http.routers.tasksheet-storage.rule=Host(`${STORAGE_DOMAIN}`)'
+      - traefik.http.routers.tasksheet-storage.entrypoints=websecure
+      - traefik.http.routers.tasksheet-storage.tls.certresolver=myresolver
+      - traefik.http.services.tasksheet-storage.loadbalancer.server.port=9000
+    networks:
+      - internal
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 1
+
+  createbuckets:
+    image: minio/mc:RELEASE.2025-08-13T08-35-41Z
+    restart: "no"
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
+        mc mb --ignore-existing local/worklenz-bucket
+        mc admin user info local "$${S3_ACCESS_KEY_ID}" >/dev/null 2>&1 || mc admin user add local "$${S3_ACCESS_KEY_ID}" "$${S3_SECRET_ACCESS_KEY}"
+        mc admin policy attach local readwrite --user "$${S3_ACCESS_KEY_ID}"
+        mc anonymous set download local/worklenz-bucket
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    cpus: 0.25
+
+  backend:
+    image: registry.sevencsolutions.com/worklenz-task-sheet-backend:${IMAGE_TAG}
+    restart: unless-stopped
+    init: true
+    environment: *backend-environment
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      createbuckets:
+        condition: service_completed_successfully
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik_default
+      - 'traefik.http.routers.tasksheet-backend.rule=Host(`${APP_DOMAIN}`) && (PathPrefix(`/api`) || PathPrefix(`/secure`) || PathPrefix(`/public`) || PathPrefix(`/socket`) || PathPrefix(`/uploads`) || PathPrefix(`/email-templates`) || PathPrefix(`/api-docs`) || Path(`/csrf-token`))'
+      - traefik.http.routers.tasksheet-backend.entrypoints=websecure
+      - traefik.http.routers.tasksheet-backend.priority=100
+      - traefik.http.routers.tasksheet-backend.tls.certresolver=myresolver
+      - traefik.http.services.tasksheet-backend.loadbalancer.server.port=3000
+    networks:
+      - internal
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 1g
+    cpus: 1
+
+  frontend:
+    image: registry.sevencsolutions.com/worklenz-task-sheet-frontend:${IMAGE_TAG}
+    restart: unless-stopped
+    init: true
+    environment:
+      VITE_API_URL: https://${APP_DOMAIN}
+      VITE_SOCKET_URL: wss://${APP_DOMAIN}
+      VITE_CLIENT_PORTAL_URL: https://${APP_DOMAIN}
+    depends_on:
+      backend:
+        condition: service_healthy
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik_default
+      - 'traefik.http.routers.tasksheet-frontend.rule=Host(`${APP_DOMAIN}`)'
+      - traefik.http.routers.tasksheet-frontend.entrypoints=websecure
+      - traefik.http.routers.tasksheet-frontend.priority=1
+      - traefik.http.routers.tasksheet-frontend.tls.certresolver=myresolver
+      - traefik.http.services.tasksheet-frontend.loadbalancer.server.port=5000
+    networks:
+      - internal
+      - traefik
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 0.5
+
+  db-backup:
+    image: postgres:15.17-bookworm
+    restart: unless-stopped
+    environment:
+      PGUSER: ${DB_ADMIN_USER:-postgres}
+      PGPASSWORD: ${DB_ADMIN_PASSWORD}
+      PGDATABASE: worklenz_db
+      PGHOST: db
+    depends_on:
+      db:
+        condition: service_healthy
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        while true; do
+          backup="/backups/worklenz_db_$$(date +%Y-%m-%d_%H-%M-%S).sql"
+          pg_dump --clean --if-exists > "$${backup}.tmp"
+          mv "$${backup}.tmp" "$${backup}"
+          find /backups -type f -name '*.sql' -mtime +30 -delete
+          sleep 86400
+        done
+    volumes:
+      - database_backups:/backups
+    networks:
+      - internal
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 0.5
+
+volumes:
+  postgres_data:
+    name: tasksheet_postgres_data
+  minio_data:
+    name: tasksheet_minio_data
+  database_backups:
+    name: tasksheet_database_backups
+
+networks:
+  internal:
+    name: tasksheet_internal
+  traefik:
+    external: true
+    name: traefik_default

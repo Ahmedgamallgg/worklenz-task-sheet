@@ -13,13 +13,23 @@ import {BUCKET, REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_URL} from "./
 import {getSignedUrl} from "@aws-sdk/s3-request-presigner";
 import mime from "mime";
 
+const getEndpointFromUrl = () => {
+  try {
+    const url = new URL(S3_URL);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    return undefined;
+  }
+};
 
 const s3Client = new S3Client({
   region: REGION,
   credentials: {
     accessKeyId: S3_ACCESS_KEY_ID || "",
     secretAccessKey: S3_SECRET_ACCESS_KEY || "",
-  }
+  },
+  endpoint: getEndpointFromUrl(),
+  forcePathStyle: true,
 });
 
 export function getRootDir() {

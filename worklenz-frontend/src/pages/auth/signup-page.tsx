@@ -24,6 +24,7 @@ import logger from '@/utils/errorLogger';
 import alertService from '@/services/alerts/alertService';
 import { WORKLENZ_REDIRECT_PROJ_KEY } from '@/shared/constants';
 import { getDeviceType } from '@/types/mixpanel-events.types';
+import config from '@/config/env';
 
 // Define the global grecaptcha type
 declare global {
@@ -268,7 +269,7 @@ const SignupPage = () => {
         button_location: 'inline',
       });
       const queryParams = getInvitationQueryParams();
-      const url = `${import.meta.env.VITE_API_URL}/secure/google${queryParams ? `?${queryParams}` : ''}`;
+      const url = `${config.apiUrl}/secure/google${queryParams ? `?${queryParams}` : ''}`;
       window.location.href = url;
     } catch (error) {
       message.error('Failed to redirect to Google sign up');

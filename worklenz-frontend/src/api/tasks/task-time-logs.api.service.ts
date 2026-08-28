@@ -3,6 +3,7 @@ import apiClient from '../api-client';
 import { IServerResponse } from '@/types/common.types';
 import { ITaskLogViewModel } from '@/types/tasks/task-log-view.types';
 import { getUserSession } from '@/utils/session-helper';
+import config from '@/config/env';
 
 const rootUrl = `${API_BASE_URL}/task-time-log`;
 
@@ -65,6 +66,6 @@ export const taskTimeLogsApiService = {
   },
 
   exportToExcel(taskId: string) {
-    window.location.href = `${import.meta.env.VITE_API_URL}${API_BASE_URL}/task-time-log/export/${taskId}`;
+    window.location.href = `${config.apiUrl}${API_BASE_URL}/task-time-log/export/${taskId}`;
   },
 };

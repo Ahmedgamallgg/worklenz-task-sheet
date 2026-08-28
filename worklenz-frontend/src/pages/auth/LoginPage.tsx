@@ -42,6 +42,7 @@ import { useDocumentTitle } from '@/hooks/useDoumentTItle';
 import alertService from '@/services/alerts/alertService';
 import { useAuthService } from '@/hooks/useAuth';
 import { WORKLENZ_REDIRECT_PROJ_KEY } from '@/shared/constants';
+import config from '@/config/env';
 
 interface LoginFormValues {
   email: string;
@@ -234,7 +235,7 @@ const LoginPage: React.FC = () => {
       if (urlParams.projectId) params.append('project', urlParams.projectId);
 
       const queryString = params.toString();
-      const url = `${import.meta.env.VITE_API_URL}/secure/google${queryString ? `?${queryString}` : ''}`;
+      const url = `${config.apiUrl}/secure/google${queryString ? `?${queryString}` : ''}`;
       window.location.href = url;
     } catch (error) {
       logger.error('Google login failed', error);
@@ -253,7 +254,7 @@ const LoginPage: React.FC = () => {
       if (urlParams.projectId) params.append('project', urlParams.projectId);
 
       const queryString = params.toString();
-      const url = `${import.meta.env.VITE_API_URL}/secure/apple${queryString ? `?${queryString}` : ''}`;
+      const url = `${config.apiUrl}/secure/apple${queryString ? `?${queryString}` : ''}`;
       window.location.href = url;
     } catch (error) {
       logger.error('Apple login failed', error);

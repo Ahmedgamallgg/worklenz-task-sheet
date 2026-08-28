@@ -12,13 +12,13 @@ export function mapMembersWithAnd(members: string) {
 }
 
 export function getBaseUrl() {
-  if (isLocalServer()) return `http://${process.env.FRONTEND_URL}`;
-  return `https://${process.env.FRONTEND_URL}`;
+  const value = process.env.FRONTEND_URL || "app.worklenz.com";
+  return /^https?:\/\//.test(value) ? value : `${isLocalServer() ? "http" : "https"}://${value}`;
 }
 
 export function getClientPortalBaseUrl() {
-  if (isLocalServer()) return `http://${process.env.CLIENT_PORTAL_HOSTNAME}`;
-  return `https://${process.env.CLIENT_PORTAL_HOSTNAME}`;
+  const value = process.env.CLIENT_PORTAL_HOSTNAME || "clients.worklenz.com";
+  return /^https?:\/\//.test(value) ? value : `${isLocalServer() ? "http" : "https"}://${value}`;
 }
 
 function mapMembers(project: ITaskAssignmentModelProject) {
