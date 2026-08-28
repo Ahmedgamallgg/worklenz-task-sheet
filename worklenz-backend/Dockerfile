@@ -19,6 +19,7 @@ RUN npm run build
 
 # Prune devDependencies so dev tools (like esbuild Go binary) are not copied to production
 RUN npm prune --omit=dev
+RUN node -e "require('swagger-ui-express'); require('yamljs')"
 
 RUN echo "$RELEASE_VERSION" > release
 
