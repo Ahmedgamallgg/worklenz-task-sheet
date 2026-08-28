@@ -19,9 +19,8 @@ export default defineConfig(({ command, mode }) => {
     // **Plugins**
     plugins: [
       react(),
-      // Sentry plugin for source maps upload in production
-      // sentryVitePlugin returns an array of plugins, so we spread it
-      ...(isProduction
+      // Sentry plugin for source maps upload in production (only active when authToken is provided)
+      ...(isProduction && env.VITE_SENTRY_AUTH_TOKEN
         ? sentryVitePlugin({
             org: env.VITE_SENTRY_ORG,
             project: env.VITE_SENTRY_PROJECT,
@@ -149,6 +148,11 @@ export default defineConfig(({ command, mode }) => {
       },
     },
 
+    // **Esbuild options**
+    esbuild: {
+      drop: isProduction ? ['console', 'debugger'] : [],
+    },
+
     // **Build**
     build: {
       // **Target**
@@ -160,9 +164,8 @@ export default defineConfig(({ command, mode }) => {
       cssCodeSplit: true,
 
       // **Sourcemaps**
-      // Generate sourcemaps in production for Sentry (they'll be uploaded, not included in bundle)
-      // Use 'hidden' so sourcemaps are generated but not referenced in the bundle
-      sourcemap: !isProduction ? 'inline' : 'hidden',
+      // Generate sourcemaps in production only when Sentry auth token is present for upload
+      sourcemap: !isProduction ? 'inline' : Boolean(env.VITE_SENTRY_AUTH_TOKEN) ? 'hidden' : false,
 
       // **Module Preload Polyfill** - Helps with chunk loading reliability
       modulePreload: {
@@ -170,23 +173,7 @@ export default defineConfig(({ command, mode }) => {
       },
 
       // **Minification**
-      minify: isProduction ? 'terser' : false,
-      terserOptions: isProduction
-        ? {
-            compress: {
-              drop_console: true,
-              drop_debugger: true,
-              pure_funcs: ['console.log', 'console.info', 'console.debug'],
-              passes: 2, // Multiple passes for better compression
-            },
-            mangle: {
-              safari10: true,
-            },
-            format: {
-              comments: false,
-            },
-          }
-        : undefined,
+      minify: isProduction ? 'esbuild' : false,
 
       // **Chunk Size Warnings**
       chunkSizeWarningLimit: 1000,
@@ -195,21 +182,30 @@ export default defineConfig(({ command, mode }) => {
       rollupOptions: {
         output: {
           // **Granular chunking strategy for better parallelism and cache reuse**
-          manualChunks: {
-            'react-vendor': ['react', 'react-dom', 'react/jsx-runtime'],
-            'react-router': ['react-router-dom'],
-            'antd-core': ['antd'],
-            'antd-icons': ['@ant-design/icons'],
-            charts: ['chart.js', 'react-chartjs-2', 'chartjs-plugin-datalabels'],
-            gantt: ['gantt-task-react'],
-            'pdf-export': ['html2canvas', 'jspdf'],
-            socket: ['socket.io-client'],
-            i18n: [
-              'i18next',
-              'react-i18next',
-              'i18next-browser-languagedetector',
-              'i18next-http-backend',
-            ],
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('jspdf')) return 'vendor-jspdf';
+              if (id.includes('html2canvas')) return 'vendor-html2canvas';
+              if (id.includes('chart.js') || id.includes('react-chartjs-2') || id.includes('chartjs-plugin-datalabels')) {
+                return 'vendor-charts';
+              }
+              if (id.includes('gantt-task-react')) return 'vendor-gantt';
+              if (id.includes('@ant-design/icons')) return 'vendor-antd-icons';
+              if (id.includes('antd')) return 'vendor-antd';
+              if (id.includes('@rc-component') || id.includes('/rc-')) return 'vendor-rc';
+              if (id.includes('@dnd-kit')) return 'vendor-dnd';
+              if (id.includes('quill') || id.includes('react-quill')) return 'vendor-quill';
+              if (id.includes('@tanstack')) return 'vendor-tanstack';
+              if (id.includes('i18next') || id.includes('react-i18next')) return 'vendor-i18n';
+              if (id.includes('socket.io-client')) return 'vendor-socket';
+              if (id.includes('date-fns') || id.includes('dayjs')) return 'vendor-dates';
+              if (id.includes('lodash') || id.includes('lodash-es')) return 'vendor-lodash';
+              if (id.includes('@reduxjs') || id.includes('react-redux')) return 'vendor-redux';
+              if (id.includes('react-router') || id.includes('react-router-dom')) return 'vendor-react-router';
+              if (id.includes('react-dom') || id.includes('/react/') || id.includes('scheduler')) {
+                return 'vendor-react-core';
+              }
+            }
           },
 
           // **File Naming Strategies**

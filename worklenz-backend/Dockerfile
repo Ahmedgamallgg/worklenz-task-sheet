@@ -17,12 +17,16 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
+# Prune devDependencies so dev tools (like esbuild Go binary) are not copied to production
+RUN npm prune --omit=dev
+
 RUN echo "$RELEASE_VERSION" > release
 
 # --- Stage 2: Production Image ---
 FROM node:22-slim
 
-RUN apt-get update && apt-get install -y libpq5 && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && apt-get install -y libpq5 && \
+    rm -rf /var/lib/apt/lists/* /usr/local/lib/node_modules/npm /root/.npm
 
 WORKDIR /app
 
@@ -34,7 +38,7 @@ COPY --from=builder --chown=node:node /usr/src/app/worklenz-email-templates ./wo
 COPY --from=builder --chown=node:node /usr/src/app/database/pg-migrations ./database/pg-migrations
 COPY --from=builder --chown=node:node /usr/src/app/scripts/migrate.js ./scripts/migrate.js
 
-RUN chown node:node /app
+RUN chown -R node:node /app
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=5 \

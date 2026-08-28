@@ -18,7 +18,8 @@ FROM node:22-alpine AS production
 
 WORKDIR /app
 
-RUN npm install -g serve@14.2.5
+RUN npm install -g serve@14.2.5 && \
+    rm -rf /usr/local/lib/node_modules/npm /root/.npm /root/.cache
 
 COPY --from=build --chown=node:node /app/build /app/build
 COPY --from=build --chown=node:node /app/public/env-config.js /app/build/env-config.js

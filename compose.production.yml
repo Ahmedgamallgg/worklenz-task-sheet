@@ -56,7 +56,7 @@ services:
   migrate:
     image: registry.sevencsolutions.com/worklenz-task-sheet-backend:${IMAGE_TAG}
     restart: "no"
-    command: ["npm", "run", "migrate:up"]
+    command: ["node", "scripts/migrate.js", "up"]
     environment:
       <<: *backend-environment
       DB_USER: ${DB_ADMIN_USER:-postgres}

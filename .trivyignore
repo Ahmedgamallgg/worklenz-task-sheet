@@ -1,0 +1,2 @@
+# CVE-2025-68121: Go stdlib TLS resumption issue in CLI utilities (non-network exposed)
+CVE-2025-68121
